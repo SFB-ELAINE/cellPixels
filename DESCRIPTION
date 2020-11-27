@@ -1,0 +1,17 @@
+Package: cellPixels
+Type: Package
+Title: Detect neclei and count pixels within and outside these
+Version: 0.1.0
+Author: c(person("Kai", "Budde", email = "kai.budde@uni-rostock.de",
+   role = c("aut", "cre"))
+Maintainer: Kai Budde <kai.budde@uni-rostock.de>
+Description: The package loads fluorescence microscopy images, detects
+   the nuclei and returns statitics on the pixels within and outside of
+   the nuclei.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+ByteCompile: TRUE
+RoxygenNote: 7.1.1
+NeedsCompilation: no
+Imports: tiff, EBImage
