@@ -36,7 +36,7 @@ require("EBImage")
 
 # Install the R package for producing stacks of the images
 if(!("cellPixels" %in% installed.packages())){
-  devtools::install_github("SFB-ELAINE/cellPixels", ref = "v0.1.0")
+  devtools::install_github("SFB-ELAINE/cellPixels", ref = "v0.1.1")
 }
 require(cellPixels)
 
@@ -44,6 +44,6 @@ require(cellPixels)
 ## FIRST EXAMPLE DIRECTORY -------------------------------------------------
 
 
-df_results <- cellPixel(input_dir = input_dir,
+df_results <- cellPixels(input_dir = input_dir,
                         nucleus_color = "blue",
-                        number_size_factor = 0.1)
+                        number_size_factor = 0.2)

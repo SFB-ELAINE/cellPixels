@@ -6,7 +6,7 @@
 \alias{CellPixels}
 \title{cellPixels}
 \usage{
-cellPixels(input_dir = NULL, nucleus_color = "blue", number_size_factor = 0.1)
+cellPixels(input_dir = NULL, nucleus_color = "blue", number_size_factor = 0.2)
 }
 \arguments{
 \item{input_dir}{A character (directory that contains all images)}
