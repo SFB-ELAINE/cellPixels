@@ -44,6 +44,6 @@ require(cellPixels)
 ## FIRST EXAMPLE DIRECTORY -------------------------------------------------
 
 
-df_results <- cellPixel(input_dir = input_dir,
+df_results <- cellPixels(input_dir = input_dir,
                         nucleus_color = "blue",
-                        number_size_factor = 0.1)
+                        number_size_factor = 0.2)

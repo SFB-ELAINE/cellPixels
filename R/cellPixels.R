@@ -10,7 +10,7 @@
 
 cellPixels <- function(input_dir = NULL,
                        nucleus_color = "blue",
-                       number_size_factor = 0.1) {
+                       number_size_factor = 0.2) {
 
   # Basics and sourcing functions ------------------------------------------
   .old.options <- options()
@@ -60,6 +60,7 @@ cellPixels <- function(input_dir = NULL,
     "fileName" = file_names,
     "dimension_x" = rep(NA, number_of_tifs),
     "dimension_y" = rep(NA, number_of_tifs),
+    "number_of_nuclei" = rep(NA, number_of_tifs),
     "intensity_sum_red_full" = rep(NA, number_of_tifs),
     "intensity_sum_green_full" = rep(NA, number_of_tifs),
     "intensity_sum_blue_full" = rep(NA, number_of_tifs),
@@ -139,9 +140,10 @@ cellPixels <- function(input_dir = NULL,
 
     # Delete all nuclei at border
     if(length(nuclei_at_borders) > 0){
-      for(i in 1:length(nuclei_at_borders)){
-        imageData(nmask)[imageData(nmask) == nuclei_at_borders[i]] <- 0
+      for(j in 1:length(nuclei_at_borders)){
+        imageData(nmask)[imageData(nmask) == nuclei_at_borders[j]] <- 0
       }
+      rm(j)
     }
 
     #display(nmask)
@@ -156,9 +158,10 @@ cellPixels <- function(input_dir = NULL,
     # remove objects that are smaller than min_nuc_size
     to_be_removed <- as.integer(names(which(table_nmask < nuc_min_size)))
     if(length(to_be_removed) > 0){
-      for(i in 1:length(to_be_removed)){
-        imageData(nmask)[imageData(nmask) == to_be_removed[i]] <- 0
+      for(j in 1:length(to_be_removed)){
+        imageData(nmask)[imageData(nmask) == to_be_removed[j]] <- 0
       }
+      rm(j)
     }
 
     # Recount nuclei
@@ -182,29 +185,30 @@ cellPixels <- function(input_dir = NULL,
       # remove 0
       nuc_numbers <- as.integer(names(table_nmask_watershed[-1]))
 
-      for(i in 1:length(nuc_numbers)){
+      for(j in 1:length(nuc_numbers)){
 
         # Find approximate midpoint of every nucleus
         dummy_coordinates <- which(
-          imageData(nmask_watershed) == nuc_numbers[i], arr.ind = TRUE)
+          imageData(nmask_watershed) == nuc_numbers[j], arr.ind = TRUE)
 
 
         pos_x <- round(mean(dummy_coordinates[,1]))
         pos_y <- round(mean(dummy_coordinates[,2]))
 
         image_nuclei_numbers <- addNumberToImage(image = image_nuclei_numbers,
-                                                number = i,
+                                                number = j,
                                                 pos_x = pos_x,
                                                 pos_y = pos_y,
                                                 number_size_factor = number_size_factor,
                                                 number_color = "green")
         image_nuclei_numbers <- addNumberToImage(image = image_nuclei_numbers,
-                                                number = i,
+                                                number = j,
                                                 pos_x = pos_x,
                                                 pos_y = pos_y,
                                                 number_size_factor = number_size_factor,
                                                 number_color = "blue")
       }
+      rm(j)
     }
 
     # Add border of nuclei and save file
@@ -243,6 +247,7 @@ cellPixels <- function(input_dir = NULL,
 
     df_results[i,"dimension_x"] <- dim(image_loaded)[1]
     df_results[i,"dimension_y"] <- dim(image_loaded)[2]
+    df_results[i,"number_of_nuclei"] <- nucNo
 
     df_results[i,"intensity_sum_red_full"] <- sum(image_loaded[,,1])
     df_results[i,"intensity_sum_green_full"] <- sum(image_loaded[,,2])
