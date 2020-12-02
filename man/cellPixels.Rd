@@ -6,10 +6,22 @@
 \alias{CellPixels}
 \title{cellPixels}
 \usage{
-cellPixels(input_dir = NULL, nucleus_color = "blue", number_size_factor = 0.2)
+cellPixels(
+  input_dir = NULL,
+  nucleus_color = "blue",
+  number_size_factor = 0.2,
+  bit_depth = NULL
+)
 }
 \arguments{
 \item{input_dir}{A character (directory that contains all images)}
+
+\item{nucleus_color}{A character (color (layer) of nuclei)}
+
+\item{number_size_factor}{A number (factor to resize numbers for
+numbering nuclei)}
+
+\item{bit_depth}{A number (bit depth of the original czi image)}
 }
 \description{
 Main function for counting pixels in different regions

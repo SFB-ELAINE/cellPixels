@@ -7,10 +7,15 @@
 #' @author Kai Budde
 #' @export cellPixels
 #' @param input_dir A character (directory that contains all images)
+#' @param nucleus_color A character (color (layer) of nuclei)
+#' @param number_size_factor A number (factor to resize numbers for
+#' numbering nuclei)
+#' @param bit_depth A number (bit depth of the original czi image)
 
 cellPixels <- function(input_dir = NULL,
                        nucleus_color = "blue",
-                       number_size_factor = 0.2) {
+                       number_size_factor = 0.2,
+                       bit_depth = NULL) {
 
   # Basics and sourcing functions ------------------------------------------
   .old.options <- options()
@@ -83,8 +88,54 @@ cellPixels <- function(input_dir = NULL,
     # Get the image path
     image_path <- paste(input_dir, file_names[i], sep="/")
 
-    # Load image
-    image_loaded <- tiff::readTIFF(source = image_path, info = FALSE)
+    # Load image (hyperstack)
+    image_loaded <- tiff::readTIFF(source = image_path, info = FALSE,
+                                   all = TRUE,
+                                   convert = FALSE, as.is = TRUE)
+
+    # Combine every channel of the image (separate list item) into one
+    # matrix
+    if(is.list(image_loaded)){
+
+      if(length(image_loaded) == 3){
+        test_image <- array(dim = c(dim(image_loaded[[1]])[1],
+                                    dim(image_loaded[[1]])[2],
+                                    3))
+        test_image[,,1] <- image_loaded[[1]]
+        test_image[,,2] <- image_loaded[[2]]
+        test_image[,,3] <- image_loaded[[3]]
+
+        image_loaded <- test_image
+        rm(test_image)
+      }else{
+        print(paste("We do not have a tif-image with three layers",
+                    " representing red, green, and blue.", sep=""))
+        return()
+      }
+
+    }
+
+    # Convert to intensities between 0 and 1
+
+    # Find the possible bit depth
+    if(is.null(bit_depth)){
+      max_intensity <- max(image_loaded)
+      if(max_intensity <= (2^8)-1){
+        bit_depth <- 8
+      }else if(max_intensity <= (2^12)-1){
+        bit_depth <- 12
+      }else if(max_intensity <= (2^16)-1){
+        bit_depth <- 16
+      }else{
+        print(paste("Bit depth is higher than 16. Somehting might",
+                    " be wrong.", sep=""))
+        return()
+      }
+
+    }
+
+
+    image_loaded <- image_loaded/(2^bit_depth-1)
 
     # -------------------------------------------------------------------- #
     # ---------------------- Data manipulation --------------------------- #
