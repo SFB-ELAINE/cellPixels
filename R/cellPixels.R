@@ -41,11 +41,18 @@ cellPixels <- function(input_dir = NULL,
 
   # Save the file names (tifs) ---------------------------------------------
   file_names <- list.files(path = input_dir)
-  file_names <- file_names[grepl("tif", file_names)]
-  number_of_tifs <- length(file_names)
+  #file_names <- file_names[grepl("tif$", file_names)]
+  file_names <- file_names[grepl("czi$", file_names)]
+  number_of_czis <- length(file_names)
+
+  # Read in Python package for reading czi files
+  # (Users will be asked to install miniconda
+  # when starting for the first time)
+  py_install("czifile")
+  zis <- import("czifile")
 
   # If there is now tif-file, close function call
-  if(number_of_tifs == 0){
+  if(number_of_czis == 0){
     return()
   }
 
@@ -63,76 +70,174 @@ cellPixels <- function(input_dir = NULL,
   # Create empty data fram -------------------------------------------------
   df_results <- data.frame(
     "fileName" = file_names,
-    "dimension_x" = rep(NA, number_of_tifs),
-    "dimension_y" = rep(NA, number_of_tifs),
-    "number_of_nuclei" = rep(NA, number_of_tifs),
-    "intensity_sum_red_full" = rep(NA, number_of_tifs),
-    "intensity_sum_green_full" = rep(NA, number_of_tifs),
-    "intensity_sum_blue_full" = rep(NA, number_of_tifs),
-    "intensity_sum_red_nucleus_region" = rep(NA, number_of_tifs),
-    "intensity_sum_green_nucleus_region" = rep(NA, number_of_tifs),
-    "intensity_sum_blue_nucleus_region" = rep(NA, number_of_tifs),
-    "intensity_sum_red_without_nucleus_region" = rep(NA, number_of_tifs),
-    "intensity_sum_green_without_nucleus_region" = rep(NA, number_of_tifs),
-    "intensity_sum_blue_without_nucleus_region" = rep(NA, number_of_tifs))
+    "dimension_x" = rep(NA, number_of_czis),
+    "dimension_y" = rep(NA, number_of_czis),
+    "number_of_nuclei" = rep(NA, number_of_czis),
+    "intensity_sum_red_full" = rep(NA, number_of_czis),
+    "intensity_sum_green_full" = rep(NA, number_of_czis),
+    "intensity_sum_blue_full" = rep(NA, number_of_czis),
+    "intensity_sum_red_nucleus_region" = rep(NA, number_of_czis),
+    "intensity_sum_green_nucleus_region" = rep(NA, number_of_czis),
+    "intensity_sum_blue_nucleus_region" = rep(NA, number_of_czis),
+    "intensity_sum_red_without_nucleus_region" = rep(NA, number_of_czis),
+    "intensity_sum_green_without_nucleus_region" = rep(NA, number_of_czis),
+    "intensity_sum_blue_without_nucleus_region" = rep(NA, number_of_czis))
 
   # Go through every image in the directory --------------------------------
-  for(i in 1:number_of_tifs){
+  for(i in 1:number_of_czis){
 
     print(paste("Dealing with file >>", file_names[i], "<<. (It is now ",
                 Sys.time(), ".)", sep=""))
 
-    # Get the image name without the ".tif" ending
-    image_name_wo_tif <- gsub("\\.tif", "", file_names[i])
+    ## Get the image name without the ".tif" ending
+    #image_name_wo_czi <- gsub("\\.tif", "", file_names[i])
+    # Get the image name without the ".czi" ending
+    image_name_wo_czi <- gsub("\\.czi", "", file_names[i])
 
     # Get the image path
     image_path <- paste(input_dir, file_names[i], sep="/")
 
-    # Load image (hyperstack)
-    image_loaded <- tiff::readTIFF(source = image_path, info = FALSE,
-                                   all = TRUE,
-                                   convert = FALSE, as.is = TRUE)
+    ## Load image (hyperstack)
+    #image_loaded <- tiff::readTIFF(source = image_path, info = FALSE,
+    #                               all = TRUE,
+    #                               convert = FALSE, as.is = TRUE)
 
-    # Combine every channel of the image (separate list item) into one
-    # matrix
-    if(is.list(image_loaded)){
+    # Load image directly from czi and save bit depth of the image
+    image_loaded <- zis$imread(image_path)
 
-      if(length(image_loaded) == 3){
-        test_image <- array(dim = c(dim(image_loaded[[1]])[1],
-                                    dim(image_loaded[[1]])[2],
-                                    3))
-        test_image[,,1] <- image_loaded[[1]]
-        test_image[,,2] <- image_loaded[[2]]
-        test_image[,,3] <- image_loaded[[3]]
+    czi_class <- zis$CziFile(image_path)
+    bit_depth <- czi_class$dtype
+    if(bit_depth == "uint16"){
+      bit_depth <- 16
+    }else if(bit_depth == "uint8"){
+      bit_depth <- 8
+    }else{
+      print(paste("Something went wrong with the bit depth.", sep=""))
+      return()
+    }
 
-        image_loaded <- test_image
-        rm(test_image)
-      }else{
-        print(paste("We do not have a tif-image with three layers",
-                    " representing red, green, and blue.", sep=""))
-        return()
-      }
+    # ComponentBitCount -> shows the number of bits the camera can record
+    # (is 0 or not specified if it is the same as dtype)
+    metadata <- czi_class$metadata(czi_class)
 
+    # Save the dimension information
+    # B: (Acquisition) Block index in segmented experiments.
+    # C: Channel in a Multi-Channel data set
+    # X: Pixel index / offset in the X direction. Used for tiled images.
+    # Y: Pixel index / offset in the y direction. Used for tiled images.
+    # 0: Data contains uncompressed pixels.
+
+    axes <- czi_class$axes
+    axes <- unlist(strsplit(x = axes, split = ""))
+    pos_channels <- grep(pattern = "C", x = axes)
+    pos_x <- grep(pattern = "X", x = axes)
+    pos_y <- grep(pattern = "Y", x = axes)
+
+    camera_bit_depth <- gsub(
+      pattern = ".+<ComponentBitCount>(.+)</ComponentBitCount>.+",
+      replacement = "\\1",
+      x = metadata)
+    camera_bit_depth <- as.numeric(camera_bit_depth)
+    if(!is.na(camera_bit_depth) && (camera_bit_depth != 0)){
+      bit_depth <- camera_bit_depth
+    }
+
+    # Find red, green, and blue channel ID
+    wavelengths <- gsub(
+      pattern =  paste(".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
+                       ".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
+                       ".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
+                       sep=""),
+      replacement = "\\1,\\2,\\3",
+      x = metadata)
+    wavelengths <- as.numeric(strsplit(wavelengths, split = ",")[[1]])
+
+    red_id <- which(wavelengths == max(wavelengths))
+    blue_id <- which(wavelengths == min(wavelengths))
+
+    if(length(wavelengths) == 3){
+      green_id <- c(1:3)[!(c(1:3) %in% red_id | c(1:3) %in% blue_id)]
+    }else{
+      print("There are more or fewer than 3 wavelengths.")
+      return()
+    }
+
+    rgb_layers <- c(red_id, green_id, blue_id)
+
+    rm(czi_class)
+
+    # # Combine every channel of the image (separate list item) into one
+    # # matrix
+    # if(is.list(image_loaded)){
+    #
+    #   if(length(image_loaded) == 3){
+    #     test_image <- array(dim = c(dim(image_loaded[[1]])[1],
+    #                                 dim(image_loaded[[1]])[2],
+    #                                 3))
+    #     test_image[,,1] <- image_loaded[[1]]
+    #     test_image[,,2] <- image_loaded[[2]]
+    #     test_image[,,3] <- image_loaded[[3]]
+    #
+    #     image_loaded <- test_image
+    #     rm(test_image)
+    #   }else{
+    #     print(paste("We do not have a tif-image with three layers",
+    #                 " representing red, green, and blue.", sep=""))
+    #     return()
+    #   }
+    #
+    # }
+
+    # Make a 3-D array of the image
+    number_of_channels <- dim(image_loaded)[pos_channels]
+    dim_x <- dim(image_loaded)[pos_x]
+    dim_y <- dim(image_loaded)[pos_y]
+
+    if(number_of_channels == 3){
+
+      # Delete the dimensions of an array which have only one level
+      image_loaded <- drop(image_loaded)
+
+      # Permute dimensions of array
+      pos_x <- pos_x - min(pos_x, pos_y, pos_channels) + 1
+      pos_y <- pos_y - min(pos_x, pos_y, pos_channels) + 1
+      pos_channels <- pos_channels - min(pos_x, pos_y, pos_channels) + 1
+
+      image_loaded <- aperm(a = image_loaded, c(pos_y, pos_x, pos_channels))
+
+      # Reorder the layers accoring to the colors
+      copy_image_loaded <- image_loaded
+
+      image_loaded[,,1] <- copy_image_loaded[,,rgb_layers[1]]
+      image_loaded[,,2] <- copy_image_loaded[,,rgb_layers[2]]
+      image_loaded[,,3] <- copy_image_loaded[,,rgb_layers[3]]
+
+      rm(copy_image_loaded)
+
+    }else{
+      print(paste("We do not have a tif-image with three layers",
+                  " representing red, green, and blue.", sep=""))
+      return()
     }
 
     # Convert to intensities between 0 and 1
 
-    # Find the possible bit depth
-    if(is.null(bit_depth)){
-      max_intensity <- max(image_loaded)
-      if(max_intensity <= (2^8)-1){
-        bit_depth <- 8
-      }else if(max_intensity <= (2^12)-1){
-        bit_depth <- 12
-      }else if(max_intensity <= (2^16)-1){
-        bit_depth <- 16
-      }else{
-        print(paste("Bit depth is higher than 16. Somehting might",
-                    " be wrong.", sep=""))
-        return()
-      }
-
-    }
+    # # Find the possible bit depth
+    # if(is.null(bit_depth)){
+    #   max_intensity <- max(image_loaded)
+    #   if(max_intensity <= (2^8)-1){
+    #     bit_depth <- 8
+    #   }else if(max_intensity <= (2^12)-1){
+    #     bit_depth <- 12
+    #   }else if(max_intensity <= (2^16)-1){
+    #     bit_depth <- 16
+    #   }else{
+    #     print(paste("Bit depth is higher than 16. Somehting might",
+    #                 " be wrong.", sep=""))
+    #     return()
+    #   }
+    #
+    # }
 
 
     image_loaded <- image_loaded/(2^bit_depth-1)
@@ -322,10 +427,15 @@ cellPixels <- function(input_dir = NULL,
 
     # Save all images ------------------------------------------------------
 
+    # Save metadata in txt file
+    write.table(metadata, file = paste(output_dir,image_name_wo_czi,
+                                  "_metadata.txt", sep = ""),
+                sep = "", row.names = FALSE, col.names = FALSE)
+
     # Normalized and histogram-adapted images
     tiff::writeTIFF(what = image_normalized,
                     where = paste(output_dir,
-                                  image_name_wo_tif,
+                                  image_name_wo_czi,
                                   "_normalized.tif",
                                   sep = ""),
                     bits.per.sample = 8L, compression = "none",
@@ -333,7 +443,7 @@ cellPixels <- function(input_dir = NULL,
 
     tiff::writeTIFF(what = image_histogram_equalization,
                     where = paste(output_dir,
-                                  image_name_wo_tif,
+                                  image_name_wo_czi,
                                   "_histogram_equalized.tif",
                                   sep = ""),
                     bits.per.sample = 8L, compression = "none",
@@ -342,7 +452,7 @@ cellPixels <- function(input_dir = NULL,
     # Images with marked nuclei
     tiff::writeTIFF(what = Image_nuclei,
                     where = paste(output_dir,
-                                  image_name_wo_tif,
+                                  image_name_wo_czi,
                                   "_nuclei.tif",
                                   sep = ""),
                     bits.per.sample = 8L, compression = "none",
@@ -350,7 +460,7 @@ cellPixels <- function(input_dir = NULL,
 
     tiff::writeTIFF(what = Image_nuclei_numbers,
                     where = paste(output_dir,
-                                  image_name_wo_tif,
+                                  image_name_wo_czi,
                                   "_nuclei_numbers.tif",
                                   sep = ""),
                     bits.per.sample = 8L, compression = "none",
@@ -359,7 +469,7 @@ cellPixels <- function(input_dir = NULL,
     # Images with left out nuclei and only with positions of nuclei
     tiff::writeTIFF(what = Image_nucleus_part,
                     where = paste(output_dir,
-                                  image_name_wo_tif,
+                                  image_name_wo_czi,
                                   "_nucleus_part.tif",
                                   sep = ""),
                     bits.per.sample = 8L, compression = "none",
@@ -367,7 +477,7 @@ cellPixels <- function(input_dir = NULL,
 
     tiff::writeTIFF(what = Image_non_nucleus_part,
                     where = paste(output_dir,
-                                  image_name_wo_tif,
+                                  image_name_wo_czi,
                                   "_nucleus_left_out.tif",
                                   sep = ""),
                     bits.per.sample = 8L, compression = "none",

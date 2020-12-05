@@ -1,4 +1,4 @@
-# Testscript for using the R package cellPixels for development  ++++++++++
+# Testscript for using the R package cellPixels ++++++++++++++++++++++++++++
 # Author: Kai Budde
 # Last changed: 2020/11/27
 
@@ -16,8 +16,7 @@ input_dir <- "tests/"
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-# Load packages #############################################################
-
+# Load packages ############################################################
 
 list.of.packages <- c("devtools")
 new.packages <- list.of.packages[
@@ -35,14 +34,11 @@ require("EBImage")
 
 
 # Install the R package for producing stacks of the images
-if(!("cellPixels" %in% installed.packages())){
-  devtools::install_github("SFB-ELAINE/cellPixels", ref = "v0.1.1")
-}
+devtools::install_github("SFB-ELAINE/cellPixels")
 require(cellPixels)
 
 
 ## FIRST EXAMPLE DIRECTORY -------------------------------------------------
-
 
 df_results <- cellPixels(input_dir = input_dir,
                         nucleus_color = "blue",
