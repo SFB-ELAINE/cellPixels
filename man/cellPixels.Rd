@@ -9,6 +9,7 @@
 cellPixels(
   input_dir = NULL,
   nucleus_color = "blue",
+  protein_in_nuc_color = NULL,
   number_size_factor = 0.2,
   bit_depth = NULL
 )
@@ -17,6 +18,9 @@ cellPixels(
 \item{input_dir}{A character (directory that contains all images)}
 
 \item{nucleus_color}{A character (color (layer) of nuclei)}
+
+\item{protein_in_nuc_color}{A character (color (layer) of protein
+expected in nucleus)}
 
 \item{number_size_factor}{A number (factor to resize numbers for
 numbering nuclei)}

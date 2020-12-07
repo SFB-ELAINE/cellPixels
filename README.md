@@ -15,7 +15,7 @@ The most recent version of the following code can always be found in
 ```R
 # Testscript for using the R package cellPixels ++++++++++++++++++++++++++++
 # Author: Kai Budde
-# Last changed: 2020/11/27
+# Last changed: 2020/12/07
 
 # Delete everything in the environment
 rm(list = ls())
@@ -57,6 +57,6 @@ require(cellPixels)
 
 df_results <- cellPixels(input_dir = input_dir,
                         nucleus_color = "blue",
+                        protein_in_nuc_color = "red",
                         number_size_factor = 0.2)
-
 ```

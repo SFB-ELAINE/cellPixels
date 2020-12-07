@@ -8,12 +8,15 @@
 #' @export cellPixels
 #' @param input_dir A character (directory that contains all images)
 #' @param nucleus_color A character (color (layer) of nuclei)
+#' @param protein_in_nuc_color A character (color (layer) of protein
+#' expected in nucleus)
 #' @param number_size_factor A number (factor to resize numbers for
 #' numbering nuclei)
 #' @param bit_depth A number (bit depth of the original czi image)
 
 cellPixels <- function(input_dir = NULL,
                        nucleus_color = "blue",
+                       protein_in_nuc_color = NULL,
                        number_size_factor = 0.2,
                        bit_depth = NULL) {
 
@@ -73,6 +76,8 @@ cellPixels <- function(input_dir = NULL,
     "dimension_x" = rep(NA, number_of_czis),
     "dimension_y" = rep(NA, number_of_czis),
     "number_of_nuclei" = rep(NA, number_of_czis),
+    "color_of_second_proteins_in_nuclei" = rep(NA, number_of_czis),
+    "number_of_nuclei_with_second_protein" = rep(NA, number_of_czis),
     "intensity_sum_red_full" = rep(NA, number_of_czis),
     "intensity_sum_green_full" = rep(NA, number_of_czis),
     "intensity_sum_blue_full" = rep(NA, number_of_czis),
@@ -256,16 +261,17 @@ cellPixels <- function(input_dir = NULL,
 
     # Save only color layer of nuclei
     image_nuclei <- getLayer(image = image_loaded, layer = nucleus_color)
-    image_nuclei <- EBImage::Image(image_nuclei)
-    #display(image_nuclei)
+    Image_nuclei <- EBImage::Image(image_nuclei)
+    rm(image_nuclei)
+    #display(Image_nuclei)
 
     # Blur the image
-    image_nuclei <- EBImage::gblur(image_nuclei, sigma = 5)
+    Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 5)
 
     # Mask the nuclei
-    nmask <- EBImage::thresh(image_nuclei, w=15, h=15, offset=0.05)
+    nmask <- EBImage::thresh(Image_nuclei, w=15, h=15, offset=0.05)
 
-        # Morphological opening to remove objects smaller than the structuring element
+    # Morphological opening to remove objects smaller than the structuring element
     nmask <- EBImage::opening(nmask, makeBrush(5, shape='disc'))
     # Fill holes
     nmask <- EBImage::fillHull(nmask)
@@ -332,8 +338,8 @@ cellPixels <- function(input_dir = NULL,
     nucNo <- max(nmask_watershed)
 
     # Include numbers of nuclei
-    image_nuclei <- image_loaded
-    image_nuclei_numbers <- image_loaded
+    Image_nuclei <- image_loaded
+    Image_nuclei_numbers <- image_loaded
 
     table_nmask_watershed <- table(nmask_watershed)
 
@@ -351,13 +357,13 @@ cellPixels <- function(input_dir = NULL,
         pos_x <- round(mean(dummy_coordinates[,1]))
         pos_y <- round(mean(dummy_coordinates[,2]))
 
-        image_nuclei_numbers <- addNumberToImage(image = image_nuclei_numbers,
+        Image_nuclei_numbers <- addNumberToImage(image = Image_nuclei_numbers,
                                                 number = j,
                                                 pos_x = pos_x,
                                                 pos_y = pos_y,
                                                 number_size_factor = number_size_factor,
                                                 number_color = "green")
-        image_nuclei_numbers <- addNumberToImage(image = image_nuclei_numbers,
+        Image_nuclei_numbers <- addNumberToImage(image = Image_nuclei_numbers,
                                                 number = j,
                                                 pos_x = pos_x,
                                                 pos_y = pos_y,
@@ -368,20 +374,23 @@ cellPixels <- function(input_dir = NULL,
     }
 
     # Add border of nuclei and save file
-    Image_nuclei <- Image(image_nuclei)
+    Image_nuclei <- Image(Image_nuclei)
     colorMode(Image_nuclei) <- "color"
 
-    Image_nuclei <- paintObjects(x = nmask_watershed,
-                                 tgt = Image_nuclei,
-                                 col='#ff00ff')
+    Image_nuclei <- EBImage::paintObjects(
+      x = nmask_watershed,
+      tgt = Image_nuclei,
+      thick = TRUE,
+      col='#ff00ff')
 
-
-    Image_nuclei_numbers <- Image(image_nuclei_numbers)
+    Image_nuclei_numbers <- Image(Image_nuclei_numbers)
     colorMode(Image_nuclei_numbers) <- "color"
 
-    Image_nuclei_numbers <- paintObjects(x = nmask_watershed,
-                                        tgt = Image_nuclei_numbers,
-                                        col='#ff00ff')
+    Image_nuclei_numbers <- EBImage::paintObjects(
+      x = nmask_watershed,
+      tgt = Image_nuclei_numbers,
+      thick = TRUE,
+      col='#ff00ff')
 
     # Display the number of nuclei
     print(paste("Number of nuclei: ", nucNo, sep=""))
@@ -395,6 +404,62 @@ cellPixels <- function(input_dir = NULL,
     non_nucleus_mask <- 1-nucleus_mask
     Image_non_nucleus_part <- Image_loaded * EBImage::toRGB(non_nucleus_mask)
 
+
+    # Count the number of nuclei that contain a second colored protein  ----
+
+    if(!is.null(protein_in_nuc_color)){
+
+      # Save only color layer of the second protein colored
+      image_protein_in_nuc <- getLayer(image = image_loaded,
+                                       layer = protein_in_nuc_color)
+      Image_protein_in_nuc <- EBImage::Image(image_protein_in_nuc)
+      rm(image_protein_in_nuc)
+      #display(Image_protein_in_nuc)
+
+      # Blur the image
+      Image_protein_in_nuc <- EBImage::gblur(Image_protein_in_nuc, sigma = 7)
+      #display(Image_protein_in_nuc)
+
+      # Mask the proteins within the nucleus
+      pmask <- EBImage::thresh(Image_protein_in_nuc, w=15, h=15, offset=0.07)
+
+      # Morphological opening to remove objects smaller than the structuring element
+      pmask <- EBImage::opening(pmask, makeBrush(5, shape='disc'))
+      # Fill holes
+      pmask <- EBImage::fillHull(pmask)
+      #display(pmask)
+
+      # Combine nmask and pmask and count the resulting nuclei containing
+      # the proteins we are looking for
+
+      n_p_mask <- nmask*pmask
+      #display(n_p_mask)
+
+      # Count the nuclei containing the proteins
+      n_p_mask <- EBImage::bwlabel(n_p_mask)
+      #display(n_p_mask)
+
+      # Count number of cells
+      nuc_with_proteins_No <- max(n_p_mask)
+
+      # Add border of nuclei with proteins and save file
+      Image_nuclei_numbers_proteins <- Image_nuclei_numbers
+      colorMode(Image_nuclei_numbers_proteins) <- "color"
+
+      Image_nuclei_numbers_proteins <- EBImage::paintObjects(
+        x = n_p_mask,
+        tgt = Image_nuclei_numbers_proteins,
+        opac = c(1,0.5),
+        col=c('#FE1F14','#FE1F14'))
+
+      # Display the number of nuclei with proteins
+      print(paste("Number of nuclei that contain other colored proteins: ",
+                  nuc_with_proteins_No, sep=""))
+
+    }
+
+
+
     # -------------------------------------------------------------------- #
     # -------------------- Statistics and data output -------------------- #
     # -------------------------------------------------------------------- #
@@ -404,6 +469,10 @@ cellPixels <- function(input_dir = NULL,
     df_results[i,"dimension_x"] <- dim(image_loaded)[2]
     df_results[i,"dimension_y"] <- dim(image_loaded)[1]
     df_results[i,"number_of_nuclei"] <- nucNo
+    if(!is.null(protein_in_nuc_color)){
+      df_results[i,"color_of_second_proteins_in_nuclei"] <- protein_in_nuc_color
+      df_results[i,"number_of_nuclei_with_second_protein"] <- nuc_with_proteins_No
+    }
 
     df_results[i,"intensity_sum_red_full"] <- sum(image_loaded[,,1])
     df_results[i,"intensity_sum_green_full"] <- sum(image_loaded[,,2])
@@ -475,6 +544,17 @@ cellPixels <- function(input_dir = NULL,
                                   sep = ""),
                     bits.per.sample = 8L, compression = "none",
                     reduce = TRUE)
+
+    # Images with marked nuclei and borders around the second protein in nuc
+    if(!is.null(protein_in_nuc_color)){
+      tiff::writeTIFF(what = Image_nuclei_numbers_proteins,
+                      where = paste(output_dir,
+                                    image_name_wo_czi,
+                                    "_nuclei_numbers_proteins.tif",
+                                    sep = ""),
+                      bits.per.sample = 8L, compression = "none",
+                      reduce = TRUE)
+    }
 
     # Images with left out nuclei and only with positions of nuclei
     tiff::writeTIFF(what = Image_nucleus_part,

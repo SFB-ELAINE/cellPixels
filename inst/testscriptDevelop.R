@@ -1,6 +1,6 @@
 # Testscript for using the R package cellPixels for development  +++++++++++
 # Author: Kai Budde
-# Last changed: 2020/12/04
+# Last changed: 2020/12/07
 
 #   Install Package:           'Ctrl + Shift + B'
 #   Check Package:             'Ctrl + Shift + E'
@@ -50,4 +50,5 @@ load_all()
 
 df_results <- cellPixels(input_dir = input_dir,
                          nucleus_color = "blue",
+                         protein_in_nuc_color = "red",
                          number_size_factor = 0.2)
