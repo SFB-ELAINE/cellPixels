@@ -16,7 +16,7 @@ graphics.off()
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 # Directory of the images
-input_dir <- "test2/"
+input_dir <- "test/"
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -27,8 +27,8 @@ if(!("EBImage" %in% installed.packages())){
     install.packages("BiocManager")
   }
   BiocManager::install("EBImage")
-  require("EBImage")
 }
+require("EBImage")
 
 list.of.packages <- c("tiff", "devtools", "reticulate")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]

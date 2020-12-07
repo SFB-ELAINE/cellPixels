@@ -401,8 +401,8 @@ cellPixels <- function(input_dir = NULL,
 
     # Save results in data frame -------------------------------------------
 
-    df_results[i,"dimension_x"] <- dim(image_loaded)[1]
-    df_results[i,"dimension_y"] <- dim(image_loaded)[2]
+    df_results[i,"dimension_x"] <- dim(image_loaded)[2]
+    df_results[i,"dimension_y"] <- dim(image_loaded)[1]
     df_results[i,"number_of_nuclei"] <- nucNo
 
     df_results[i,"intensity_sum_red_full"] <- sum(image_loaded[,,1])
@@ -430,7 +430,17 @@ cellPixels <- function(input_dir = NULL,
     # Save metadata in txt file
     write.table(metadata, file = paste(output_dir,image_name_wo_czi,
                                   "_metadata.txt", sep = ""),
-                sep = "", row.names = FALSE, col.names = FALSE)
+                sep = "", row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+
+    # Original image (converted to tif)
+    tiff::writeTIFF(what = image_loaded,
+                    where = paste(output_dir,
+                                  image_name_wo_czi,
+                                  "_original.tif",
+                                  sep = ""),
+                    bits.per.sample = 8L, compression = "none",
+                    reduce = TRUE)
 
     # Normalized and histogram-adapted images
     tiff::writeTIFF(what = image_normalized,
