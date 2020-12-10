@@ -1,6 +1,6 @@
 # Testscript for using the R package cellPixels ++++++++++++++++++++++++++++
 # Author: Kai Budde
-# Last changed: 2020/12/07
+# Last changed: 2020/12/10
 
 # Delete everything in the environment
 rm(list = ls())
@@ -12,7 +12,7 @@ graphics.off()
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 # Directory of the images
-input_dir <- "tests/"
+input_dir <- "test/"
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -24,19 +24,9 @@ new.packages <- list.of.packages[
 if(length(new.packages)) install.packages(new.packages)
 require(devtools)
 
-if(!("EBImage" %in% installed.packages())){
-  if (!requireNamespace("BiocManager", quietly = TRUE)){
-    install.packages("BiocManager")
-  }
-  BiocManager::install("EBImage")
-}
-require("EBImage")
-
-
 # Install the R package for producing stacks of the images
 devtools::install_github("SFB-ELAINE/cellPixels")
 require(cellPixels)
-
 
 ## FIRST EXAMPLE DIRECTORY -------------------------------------------------
 
