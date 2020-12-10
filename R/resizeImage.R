@@ -36,12 +36,11 @@ resizeImage <- function(image = NULL,
     new_height <-  round(number_size_factor * dim(image)[1])
     new_width  <-  round(number_size_factor * dim(image)[2])
 
-    new_img = apply(image, 2, function(y){return (spline(y, n = new_height)$y)})
-    new_img = t(apply(new_img, 1, function(y){return (spline(y, n = new_width)$y)}))
+    new_img = apply(image, 2, function(y){return (stats::spline(y, n = new_height)$y)})
+    new_img = t(apply(new_img, 1, function(y){return (stats::spline(y, n = new_width)$y)}))
 
     new_img[new_img < 0] = 0
     new_img = round(new_img)
-
 
     return(new_img)
   }

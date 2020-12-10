@@ -26,6 +26,11 @@ cellPixels <- function(input_dir = NULL,
 
   options(stringsAsFactors = FALSE, warn=-1)
 
+  if(!("EBImage" %in% utils::installed.packages())){
+    print("Installing EBImage.")
+    BiocManager::install("EBImage")
+  }
+
   # ---------------------------------------------------------------------- #
   # ---------------------- Data acquisition ------------------------------ #
   # ---------------------------------------------------------------------- #
@@ -52,7 +57,7 @@ cellPixels <- function(input_dir = NULL,
   # (Users will be asked to install miniconda
   # when starting for the first time)
   reticulate::py_install("czifile")
-  zis <- import("czifile")
+  zis <- reticulate::import("czifile")
 
   # If there is now tif-file, close function call
   if(number_of_czis == 0){
@@ -272,7 +277,7 @@ cellPixels <- function(input_dir = NULL,
     nmask <- EBImage::thresh(Image_nuclei, w=15, h=15, offset=0.05)
 
     # Morphological opening to remove objects smaller than the structuring element
-    nmask <- EBImage::opening(nmask, makeBrush(5, shape='disc'))
+    nmask <- EBImage::opening(nmask, EBImage::makeBrush(5, shape='disc'))
     # Fill holes
     nmask <- EBImage::fillHull(nmask)
 
@@ -303,7 +308,8 @@ cellPixels <- function(input_dir = NULL,
     # Delete all nuclei at border
     if(length(nuclei_at_borders) > 0){
       for(j in 1:length(nuclei_at_borders)){
-        imageData(nmask)[imageData(nmask) == nuclei_at_borders[j]] <- 0
+        EBImage::imageData(nmask)[
+          EBImage::imageData(nmask) == nuclei_at_borders[j]] <- 0
       }
       rm(j)
     }
@@ -315,13 +321,14 @@ cellPixels <- function(input_dir = NULL,
     # barplot(table(nmask)[-1])
 
     table_nmask <- table(nmask)
-    nuc_min_size <- 0.05*median(table_nmask[-1])
+    nuc_min_size <- 0.05*stats::median(table_nmask[-1])
 
     # remove objects that are smaller than min_nuc_size
     to_be_removed <- as.integer(names(which(table_nmask < nuc_min_size)))
     if(length(to_be_removed) > 0){
       for(j in 1:length(to_be_removed)){
-        imageData(nmask)[imageData(nmask) == to_be_removed[j]] <- 0
+        EBImage::imageData(nmask)[
+          EBImage::imageData(nmask) == to_be_removed[j]] <- 0
       }
       rm(j)
     }
@@ -331,7 +338,8 @@ cellPixels <- function(input_dir = NULL,
     #display(nmask)
 
     # Watershed in order to distinct nuclei that are too close to each other
-    nmask_watershed <-  EBImage::watershed( distmap(nmask), tolerance = 0.5, ext = 1)
+    nmask_watershed <-  EBImage::watershed(
+      EBImage::distmap(nmask), tolerance = 0.5, ext = 1)
     #display(colorLabels(nmask_watershed), all=TRUE)
 
     # Count number of cells
@@ -351,7 +359,8 @@ cellPixels <- function(input_dir = NULL,
 
         # Find approximate midpoint of every nucleus
         dummy_coordinates <- which(
-          imageData(nmask_watershed) == nuc_numbers[j], arr.ind = TRUE)
+          EBImage::imageData(nmask_watershed) ==
+            nuc_numbers[j], arr.ind = TRUE)
 
 
         pos_x <- round(mean(dummy_coordinates[,1]))
@@ -374,8 +383,8 @@ cellPixels <- function(input_dir = NULL,
     }
 
     # Add border of nuclei and save file
-    Image_nuclei <- Image(Image_nuclei)
-    colorMode(Image_nuclei) <- "color"
+    Image_nuclei <- EBImage::Image(Image_nuclei)
+    EBImage::colorMode(Image_nuclei) <- "color"
 
     Image_nuclei <- EBImage::paintObjects(
       x = nmask_watershed,
@@ -383,8 +392,8 @@ cellPixels <- function(input_dir = NULL,
       thick = TRUE,
       col='#ff00ff')
 
-    Image_nuclei_numbers <- Image(Image_nuclei_numbers)
-    colorMode(Image_nuclei_numbers) <- "color"
+    Image_nuclei_numbers <- EBImage::Image(Image_nuclei_numbers)
+    EBImage::colorMode(Image_nuclei_numbers) <- "color"
 
     Image_nuclei_numbers <- EBImage::paintObjects(
       x = nmask_watershed,
@@ -424,7 +433,7 @@ cellPixels <- function(input_dir = NULL,
       pmask <- EBImage::thresh(Image_protein_in_nuc, w=15, h=15, offset=0.07)
 
       # Morphological opening to remove objects smaller than the structuring element
-      pmask <- EBImage::opening(pmask, makeBrush(5, shape='disc'))
+      pmask <- EBImage::opening(pmask, EBImage::makeBrush(5, shape='disc'))
       # Fill holes
       pmask <- EBImage::fillHull(pmask)
       #display(pmask)
@@ -444,7 +453,7 @@ cellPixels <- function(input_dir = NULL,
 
       # Add border of nuclei with proteins and save file
       Image_nuclei_numbers_proteins <- Image_nuclei_numbers
-      colorMode(Image_nuclei_numbers_proteins) <- "color"
+      EBImage::colorMode(Image_nuclei_numbers_proteins) <- "color"
 
       Image_nuclei_numbers_proteins <- EBImage::paintObjects(
         x = n_p_mask,
@@ -487,17 +496,17 @@ cellPixels <- function(input_dir = NULL,
     df_results[i,"intensity_sum_blue_without_nucleus_region"] <- sum(Image_non_nucleus_part[,,3])
 
     if(!is.null(df_results)){
-      write.csv(df_results,
+      utils::write.csv(df_results,
                 file = paste(output_dir, "intensity_summary.csv", sep=""), row.names = FALSE)
 
-      write.csv2(df_results,
+      utils::write.csv2(df_results,
                  file = paste(output_dir, "intensity_summary_de.csv", sep=""), row.names = FALSE)
     }
 
     # Save all images ------------------------------------------------------
 
     # Save metadata in txt file
-    write.table(metadata, file = paste(output_dir,image_name_wo_czi,
+    utils::write.table(metadata, file = paste(output_dir,image_name_wo_czi,
                                   "_metadata.txt", sep = ""),
                 sep = "", row.names = FALSE, col.names = FALSE, quote = FALSE)
 
