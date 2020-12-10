@@ -51,7 +51,7 @@ cellPixels <- function(input_dir = NULL,
   # Read in Python package for reading czi files
   # (Users will be asked to install miniconda
   # when starting for the first time)
-  py_install("czifile")
+  reticulate::py_install("czifile")
   zis <- import("czifile")
 
   # If there is now tif-file, close function call
