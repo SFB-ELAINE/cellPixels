@@ -13,12 +13,16 @@
 #' @param number_size_factor A number (factor to resize numbers for
 #' numbering nuclei)
 #' @param bit_depth A number (bit depth of the original czi image)
+#' @param number_of_pixels_at_border_to_disregard A number (number of pixels
+#' at the border of the image (rows and columns) that define the region
+#' where found cells are disregarded)
 
 cellPixels <- function(input_dir = NULL,
                        nucleus_color = "blue",
                        protein_in_nuc_color = NULL,
                        number_size_factor = 0.2,
-                       bit_depth = NULL) {
+                       bit_depth = NULL,
+                       number_of_pixels_at_border_to_disregard = 3) {
 
   # Basics and sourcing functions ------------------------------------------
   .old.options <- options()
@@ -290,10 +294,20 @@ cellPixels <- function(input_dir = NULL,
     #display(nmask)
 
     # Record all nuclei that are at the edges of the image
-    left  <- table(nmask[1, 1:dim(nmask)[2]])
-    top   <- table(nmask[1:dim(nmask)[1],1])
-    right <- table(nmask[dim(nmask)[1], 1:dim(nmask)[2]])
-    bottom <- table(nmask[1:dim(nmask)[1],dim(nmask)[2]])
+    number_of_pixels_at_border_to_disregard <-
+      number_of_pixels_at_border_to_disregard - 1
+
+    left  <- table(nmask[1:number_of_pixels_at_border_to_disregard,
+                         1:dim(nmask)[2]])
+    top   <- table(nmask[1:dim(nmask)[1],
+                         1:number_of_pixels_at_border_to_disregard])
+    right <- table(nmask[
+      (dim(nmask)[1]-number_of_pixels_at_border_to_disregard):dim(nmask)[1],
+      1:dim(nmask)[2]])
+    bottom <- table(nmask[
+      1:dim(nmask)[1],
+      (dim(nmask)[2]-number_of_pixels_at_border_to_disregard):dim(nmask)[2]])
+
 
     left <- as.integer(names(left))
     top <- as.integer(names(top))
