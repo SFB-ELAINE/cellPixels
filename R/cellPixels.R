@@ -299,10 +299,16 @@ cellPixels <- function(input_dir = NULL,
     #display(Image_nuclei)
 
     # Blur the image
-    Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 5)
+    Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 7)
 
     # Mask the nuclei
-    nmask <- EBImage::thresh(Image_nuclei, w=15, h=15, offset=0.05)
+    if(grepl(pattern = "_20x_", file_names[i])){
+      # Smaller moving rectangle if the magnification is 20x (instead of 40x)
+      nmask <- EBImage::thresh(Image_nuclei, w=15, h=15, offset=0.01)
+    }else{
+      nmask <- EBImage::thresh(Image_nuclei, w=35, h=35, offset=0.01)
+    }
+
 
     # Morphological opening to remove objects smaller than the structuring element
     nmask <- EBImage::opening(nmask, EBImage::makeBrush(5, shape='disc'))
