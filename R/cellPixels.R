@@ -19,7 +19,7 @@
 
 cellPixels <- function(input_dir = NULL,
                        nucleus_color = "blue",
-                       protein_in_nuc_color = NULL,
+                       protein_in_nuc_color = "none",
                        number_size_factor = 0.2,
                        bit_depth = NULL,
                        number_of_pixels_at_border_to_disregard = 3) {
@@ -82,6 +82,7 @@ cellPixels <- function(input_dir = NULL,
   # Create empty data fram -------------------------------------------------
   df_results <- data.frame(
     "fileName" = file_names,
+    "manual_quality_check" = rep(NA, number_of_czis),
     "dimension_x" = rep(NA, number_of_czis),
     "dimension_y" = rep(NA, number_of_czis),
     "number_of_nuclei" = rep(NA, number_of_czis),
@@ -95,7 +96,16 @@ cellPixels <- function(input_dir = NULL,
     "intensity_sum_blue_nucleus_region" = rep(NA, number_of_czis),
     "intensity_sum_red_without_nucleus_region" = rep(NA, number_of_czis),
     "intensity_sum_green_without_nucleus_region" = rep(NA, number_of_czis),
-    "intensity_sum_blue_without_nucleus_region" = rep(NA, number_of_czis))
+    "intensity_sum_blue_without_nucleus_region" = rep(NA, number_of_czis),
+    "exposure_time_channel0" = rep(NA, number_of_czis),
+    "exposure_time_channel1" = rep(NA, number_of_czis),
+    "exposure_time_channel2" = rep(NA, number_of_czis))
+
+  # Reduce the number of pixels for the borders because we will go from
+  # 0 to number_of_pixels_at_border_to_disregard-1
+  number_of_pixels_at_border_to_disregard <-
+    number_of_pixels_at_border_to_disregard - 1
+
 
   # Go through every image in the directory --------------------------------
   for(i in 1:number_of_czis){
@@ -256,6 +266,20 @@ cellPixels <- function(input_dir = NULL,
 
     image_loaded <- image_loaded/(2^bit_depth-1)
 
+
+    # Get the exposure time for every layer
+    exposure_time <- gsub(
+      pattern =  paste(".+<ExposureTime>(.+)</ExposureTime>.+",
+                       ".+<ExposureTime>(.+)</ExposureTime>.+",
+                       ".+<ExposureTime>(.+)</ExposureTime>.+",
+                       sep=""),
+      replacement = "\\1,\\2,\\3",
+      x = metadata)
+
+    exposure_time <- unlist(strsplit(x = exposure_time, split = ","))
+
+
+
     # -------------------------------------------------------------------- #
     # ---------------------- Data manipulation --------------------------- #
     # -------------------------------------------------------------------- #
@@ -294,9 +318,6 @@ cellPixels <- function(input_dir = NULL,
     #display(nmask)
 
     # Record all nuclei that are at the edges of the image
-    number_of_pixels_at_border_to_disregard <-
-      number_of_pixels_at_border_to_disregard - 1
-
     left  <- table(nmask[1:number_of_pixels_at_border_to_disregard,
                          1:dim(nmask)[2]])
     top   <- table(nmask[1:dim(nmask)[1],
@@ -380,18 +401,20 @@ cellPixels <- function(input_dir = NULL,
         pos_x <- round(mean(dummy_coordinates[,1]))
         pos_y <- round(mean(dummy_coordinates[,2]))
 
-        Image_nuclei_numbers <- addNumberToImage(image = Image_nuclei_numbers,
-                                                number = j,
-                                                pos_x = pos_x,
-                                                pos_y = pos_y,
-                                                number_size_factor = number_size_factor,
-                                                number_color = "green")
-        Image_nuclei_numbers <- addNumberToImage(image = Image_nuclei_numbers,
-                                                number = j,
-                                                pos_x = pos_x,
-                                                pos_y = pos_y,
-                                                number_size_factor = number_size_factor,
-                                                number_color = "blue")
+        Image_nuclei_numbers <- addNumberToImage(
+          image = Image_nuclei_numbers,
+          number = j,
+          pos_x = pos_x,
+          pos_y = pos_y,
+          number_size_factor = number_size_factor,
+          number_color = "green")
+        Image_nuclei_numbers <- addNumberToImage(
+          image = Image_nuclei_numbers,
+          number = j,
+          pos_x = pos_x,
+          pos_y = pos_y,
+          number_size_factor = number_size_factor,
+          number_color = "blue")
       }
       rm(j)
     }
@@ -430,7 +453,7 @@ cellPixels <- function(input_dir = NULL,
 
     # Count the number of nuclei that contain a second colored protein  ----
 
-    if(!is.null(protein_in_nuc_color)){
+    if(!is.null(protein_in_nuc_color) & protein_in_nuc_color != "none"){
 
       # Save only color layer of the second protein colored
       image_protein_in_nuc <- getLayer(image = image_loaded,
@@ -492,7 +515,7 @@ cellPixels <- function(input_dir = NULL,
     df_results[i,"dimension_x"] <- dim(image_loaded)[2]
     df_results[i,"dimension_y"] <- dim(image_loaded)[1]
     df_results[i,"number_of_nuclei"] <- nucNo
-    if(!is.null(protein_in_nuc_color)){
+    if(!is.null(protein_in_nuc_color) & protein_in_nuc_color != "none"){
       df_results[i,"color_of_second_proteins_in_nuclei"] <- protein_in_nuc_color
       df_results[i,"number_of_nuclei_with_second_protein"] <- nuc_with_proteins_No
     }
@@ -509,13 +532,9 @@ cellPixels <- function(input_dir = NULL,
     df_results[i,"intensity_sum_green_without_nucleus_region"] <- sum(Image_non_nucleus_part[,,2])
     df_results[i,"intensity_sum_blue_without_nucleus_region"] <- sum(Image_non_nucleus_part[,,3])
 
-    if(!is.null(df_results)){
-      utils::write.csv(df_results,
-                file = paste(output_dir, "intensity_summary.csv", sep=""), row.names = FALSE)
-
-      utils::write.csv2(df_results,
-                 file = paste(output_dir, "intensity_summary_de.csv", sep=""), row.names = FALSE)
-    }
+    df_results[i,"exposure_time_channel0"] <- exposure_time[1]
+    df_results[i,"exposure_time_channel1"] <- exposure_time[2]
+    df_results[i,"exposure_time_channel2"] <- exposure_time[3]
 
     # Save all images ------------------------------------------------------
 
@@ -569,7 +588,7 @@ cellPixels <- function(input_dir = NULL,
                     reduce = TRUE)
 
     # Images with marked nuclei and borders around the second protein in nuc
-    if(!is.null(protein_in_nuc_color)){
+    if(!is.null(protein_in_nuc_color) & protein_in_nuc_color != "none"){
       tiff::writeTIFF(what = Image_nuclei_numbers_proteins,
                       where = paste(output_dir,
                                     image_name_wo_czi,
@@ -596,7 +615,32 @@ cellPixels <- function(input_dir = NULL,
                     bits.per.sample = 8L, compression = "none",
                     reduce = TRUE)
 
+    # Remove all variables but the ones used before the for loop
+
+    list_of_variables <- ls()
+    keep_variables <- c("df_results", "zis",
+                        "bit_depth", "file_names", "input_dir",
+                        "nucleus_color","number_of_czis",
+                        "number_of_pixels_at_border_to_disregard",
+                        "number_size_factor", "output_dir",
+                        "protein_in_nuc_color", ".old.options")
+
+    remove_variables <- list_of_variables[
+      !(list_of_variables %in% keep_variables)]
+
+    rm(list = remove_variables)
+    rm(remove_variables)
+
+
   } # end of the routine for every image in the directory
+
+  if(!is.null(df_results)){
+    utils::write.csv(df_results,
+                     file = paste(output_dir, "intensity_summary.csv", sep=""), row.names = FALSE)
+
+    utils::write.csv2(df_results,
+                      file = paste(output_dir, "intensity_summary_de.csv", sep=""), row.names = FALSE)
+  }
 
   return(df_results)
 

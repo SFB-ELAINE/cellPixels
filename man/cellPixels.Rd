@@ -9,9 +9,10 @@
 cellPixels(
   input_dir = NULL,
   nucleus_color = "blue",
-  protein_in_nuc_color = NULL,
+  protein_in_nuc_color = "none",
   number_size_factor = 0.2,
-  bit_depth = NULL
+  bit_depth = NULL,
+  number_of_pixels_at_border_to_disregard = 3
 )
 }
 \arguments{
@@ -26,6 +27,10 @@ expected in nucleus)}
 numbering nuclei)}
 
 \item{bit_depth}{A number (bit depth of the original czi image)}
+
+\item{number_of_pixels_at_border_to_disregard}{A number (number of pixels
+at the border of the image (rows and columns) that define the region
+where found cells are disregarded)}
 }
 \description{
 Main function for counting pixels in different regions
