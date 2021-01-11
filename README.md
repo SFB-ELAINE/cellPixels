@@ -5,6 +5,7 @@ The package need at least R 4.0.0.
 It uses the R packages "reticulate" to load and use python packages (this will install miniconda when first used),
 "EBImage" for finding nuclei and contrast enhancement as well as "tiff" for saving the results in the tif format.
 We are using the python package "czifile" to directly work with the microscopy image format czi.
+Important: Because this pacakge makes use of a python package which is being installed on-the-fly, you need internet connection.
 
 
 ## Code for using the R package

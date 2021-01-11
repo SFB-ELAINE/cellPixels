@@ -10,6 +10,8 @@
 #' @param nucleus_color A character (color (layer) of nuclei)
 #' @param protein_in_nuc_color A character (color (layer) of protein
 #' expected in nucleus)
+#' @param protein_in_cytosol_color A character (color (layer) of protein
+#' expected in cytosol)
 #' @param number_size_factor A number (factor to resize numbers for
 #' numbering nuclei)
 #' @param bit_depth A number (bit depth of the original czi image)
@@ -20,6 +22,7 @@
 cellPixels <- function(input_dir = NULL,
                        nucleus_color = "blue",
                        protein_in_nuc_color = "none",
+                       protein_in_cytosol_color = "none",
                        number_size_factor = 0.2,
                        bit_depth = NULL,
                        number_of_pixels_at_border_to_disregard = 3) {
@@ -86,8 +89,10 @@ cellPixels <- function(input_dir = NULL,
     "dimension_x" = rep(NA, number_of_czis),
     "dimension_y" = rep(NA, number_of_czis),
     "number_of_nuclei" = rep(NA, number_of_czis),
-    "color_of_second_proteins_in_nuclei" = rep(NA, number_of_czis),
+    "color_of_second_protein_in_nuclei" = rep(NA, number_of_czis),
     "number_of_nuclei_with_second_protein" = rep(NA, number_of_czis),
+    "color_of_third_protein_in_cytosol" = rep(NA, number_of_czis),
+    "number_of_cells_with_third_protein" = rep(NA, number_of_czis),
     "intensity_sum_red_full" = rep(NA, number_of_czis),
     "intensity_sum_green_full" = rep(NA, number_of_czis),
     "intensity_sum_blue_full" = rep(NA, number_of_czis),
@@ -362,7 +367,7 @@ cellPixels <- function(input_dir = NULL,
     # barplot(table(nmask)[-1])
 
     table_nmask <- table(nmask)
-    nuc_min_size <- 0.05*stats::median(table_nmask[-1])
+    nuc_min_size <- 0.1*stats::median(table_nmask[-1])
 
     # remove objects that are smaller than min_nuc_size
     to_be_removed <- as.integer(names(which(table_nmask < nuc_min_size)))
@@ -472,8 +477,14 @@ cellPixels <- function(input_dir = NULL,
       Image_protein_in_nuc <- EBImage::gblur(Image_protein_in_nuc, sigma = 7)
       #display(Image_protein_in_nuc)
 
+
       # Mask the proteins within the nucleus
-      pmask <- EBImage::thresh(Image_protein_in_nuc, w=15, h=15, offset=0.07)
+      if(grepl(pattern = "_20x_", file_names[i])){
+        # Smaller moving rectangle if the magnification is 20x (instead of 40x)
+        pmask <- EBImage::thresh(Image_protein_in_nuc, w=15, h=15, offset=0.07)
+      }else{
+        pmask <- EBImage::thresh(Image_protein_in_nuc, w=35, h=35, offset=0.07)
+      }
 
       # Morphological opening to remove objects smaller than the structuring element
       pmask <- EBImage::opening(pmask, EBImage::makeBrush(5, shape='disc'))
@@ -510,6 +521,95 @@ cellPixels <- function(input_dir = NULL,
 
     }
 
+    # Count the number of cells that contain a third colored protein  ------
+
+    if(!is.null(protein_in_cytosol_color) & protein_in_cytosol_color != "none"){
+
+
+      # Save only color layer of the second protein colored
+      image_protein_in_cytosol <- getLayer(
+        image = image_loaded, layer = protein_in_cytosol_color)
+
+      Image_protein_in_cytosol <- EBImage::Image(image_protein_in_cytosol)
+      rm(image_protein_in_cytosol)
+      #display(Image_protein_in_cytosol)
+
+      # Blur the image
+      Image_protein_in_cytosol <- EBImage::gblur(Image_protein_in_cytosol, sigma = 5)
+      #display(Image_protein_in_nuc)
+
+      # Mask the proteins within the cytosol
+      if(grepl(pattern = "_20x_", file_names[i])){
+        # Smaller moving rectangle if the magnification is 20x (instead of 40x)
+        cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=100, h=100, offset=0.01)
+      }else{
+        cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=200, h=200, offset=0.01)
+      }
+
+      #display(cytosolmask)
+
+      # Morphological opening to remove objects smaller than the structuring element
+      cytosolmask <- EBImage::opening(cytosolmask, EBImage::makeBrush(5, shape='disc'))
+      # Fill holes
+      cytosolmask <- EBImage::fillHull(cytosolmask)
+      #display(cytosolmask)
+
+      # Keep only those cell bodies that contain a nucleus
+      cytosolmask <- EBImage::bwlabel(cytosolmask)
+      no_of_cytosols <- max(cytosolmask)
+
+      # Go through every stained cytosol and check for nucleus
+      for(j in 1:no_of_cytosols){
+        collocation_found <- max((cytosolmask==j)*nmask)
+        if(collocation_found == 0){
+          cytosolmask[cytosolmask==j] <- 0
+        }
+        rm(j)
+      }
+
+      cytosolmask <- EBImage::bwlabel(cytosolmask)
+      no_of_cytosols <- max(cytosolmask)
+
+      # Combine nmask and cytosolmask and count the resulting cell bodies
+      # (nuclei that are within the stained proteins in the cytosol)
+      n_c_mask <- nmask_watershed*(!cytosolmask==0)
+      #display(n_c_mask)
+
+      table_n_c_mask <- table(n_c_mask)
+
+      # Count number of cells containing staining for protein
+      cell_with_proteins_No <- length(names(table_n_c_mask))-1
+      #display(n_c_mask)
+
+
+      # remove objects that are smaller than min_nuc_size
+      to_be_removed <- as.integer(names(which(table_n_c_mask < nuc_min_size)))
+      if(length(to_be_removed) > 0){
+        for(j in 1:length(to_be_removed)){
+          EBImage::imageData(n_c_mask)[
+            EBImage::imageData(n_c_mask) == to_be_removed[j]] <- 0
+        }
+        rm(j)
+      }
+
+      # Add border of cytosols with proteins and save file
+      Image_cytosol_numbers_proteins <- Image_nuclei_numbers
+      EBImage::colorMode(Image_cytosol_numbers_proteins) <- "color"
+
+      Image_cytosol_numbers_proteins <- EBImage::paintObjects(
+        x = cytosolmask,
+        tgt = Image_cytosol_numbers_proteins,
+        opac = c(1),
+        col=c('#FFFF00'))
+
+      #display(Image_cytosol_numbers_proteins)
+
+      # Display the number of cells with proteins
+      print(paste("Number of cells that contain other colored proteins: ",
+                  cell_with_proteins_No, sep=""))
+
+    }
+
 
 
     # -------------------------------------------------------------------- #
@@ -522,8 +622,13 @@ cellPixels <- function(input_dir = NULL,
     df_results[i,"dimension_y"] <- dim(image_loaded)[1]
     df_results[i,"number_of_nuclei"] <- nucNo
     if(!is.null(protein_in_nuc_color) & protein_in_nuc_color != "none"){
-      df_results[i,"color_of_second_proteins_in_nuclei"] <- protein_in_nuc_color
+      df_results[i,"color_of_second_protein_in_nuclei"] <- protein_in_nuc_color
       df_results[i,"number_of_nuclei_with_second_protein"] <- nuc_with_proteins_No
+    }
+
+    if(!is.null(protein_in_cytosol_color) & protein_in_cytosol_color != "none"){
+      "color_of_third_protein_in_cytosol" <- protein_in_cytosol_color
+      "number_of_cells_with_third_protein" <- cell_with_proteins_No
     }
 
     df_results[i,"intensity_sum_red_full"] <- sum(image_loaded[,,1])
@@ -598,7 +703,19 @@ cellPixels <- function(input_dir = NULL,
       tiff::writeTIFF(what = Image_nuclei_numbers_proteins,
                       where = paste(output_dir,
                                     image_name_wo_czi,
-                                    "_nuclei_numbers_proteins.tif",
+                                    "_nuclei_numbers_proteins1_nuc.tif",
+                                    sep = ""),
+                      bits.per.sample = 8L, compression = "none",
+                      reduce = TRUE)
+    }
+
+    # Images with marked nuclei and borders around the third protein in
+    # cell bodies (proteins in cytosol)
+    if(!is.null(protein_in_cytosol_color) & protein_in_cytosol_color != "none"){
+      tiff::writeTIFF(what = Image_cytosol_numbers_proteins,
+                      where = paste(output_dir,
+                                    image_name_wo_czi,
+                                    "_nuclei_numbers_proteins2_cell.tif",
                                     sep = ""),
                       bits.per.sample = 8L, compression = "none",
                       reduce = TRUE)
@@ -629,7 +746,9 @@ cellPixels <- function(input_dir = NULL,
                         "nucleus_color","number_of_czis",
                         "number_of_pixels_at_border_to_disregard",
                         "number_size_factor", "output_dir",
-                        "protein_in_nuc_color", ".old.options")
+                        "protein_in_cytosol_color",
+                        "protein_in_nuc_color",
+                        ".old.options")
 
     remove_variables <- list_of_variables[
       !(list_of_variables %in% keep_variables)]

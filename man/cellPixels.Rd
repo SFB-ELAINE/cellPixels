@@ -10,6 +10,7 @@ cellPixels(
   input_dir = NULL,
   nucleus_color = "blue",
   protein_in_nuc_color = "none",
+  protein_in_cytosol_color = "none",
   number_size_factor = 0.2,
   bit_depth = NULL,
   number_of_pixels_at_border_to_disregard = 3
@@ -22,6 +23,9 @@ cellPixels(
 
 \item{protein_in_nuc_color}{A character (color (layer) of protein
 expected in nucleus)}
+
+\item{protein_in_cytosol_color}{A character (color (layer) of protein
+expected in cytosol)}
 
 \item{number_size_factor}{A number (factor to resize numbers for
 numbering nuclei)}

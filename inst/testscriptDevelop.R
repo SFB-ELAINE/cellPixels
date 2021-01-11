@@ -7,6 +7,8 @@
 #   Test Package:              'Ctrl + Shift + T'
 
 
+# TODO: Im Namen sollte ersichtlich sein, welche Farbe gesucht und markiert wurde.
+
 # Delete everything in the environment
 rm(list = ls())
 # close all open plots in RStudio
@@ -16,7 +18,7 @@ graphics.off()
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 # Directory of the images
-input_dir <- "test3/"
+input_dir <- "test4/"
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -38,7 +40,7 @@ require(devtools)
 require(reticulate)
 
 # Check package
-check()
+#check()
 
 # Document package
 document()
@@ -50,7 +52,8 @@ load_all()
 
 df_results <- cellPixels(input_dir = input_dir,
                          nucleus_color = "blue",
-                         protein_in_nuc_color = "none",
+                         protein_in_nuc_color = "red",
+                         protein_in_cytosol_color = "green",
                          number_size_factor = 0.2)
 
 save(df_results, file=paste(input_dir, "output/df_results.Rda", sep=""))
