@@ -75,7 +75,8 @@ addNumberToImage <- function(image = NULL,
     }
 
     # Resize image
-    digit_image <- resizeImage(digit_image, number_size_factor)
+    digit_image <- resizeImage(image = digit_image,
+                               resize_factor = number_size_factor)
     digit_images[[i]] <- digit_image
 
     # Save dimensions of all digits
@@ -92,6 +93,9 @@ addNumberToImage <- function(image = NULL,
   }
   if(tolower(number_color) == "blue"){
     image_layer <- 3
+  }
+  if(tolower(number_color) == "white"){
+    image_layer <- 1:dim(image)[3]
   }
 
   # Adapt the starting position so the digits will be completely seen ---

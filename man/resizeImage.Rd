@@ -5,12 +5,12 @@
 \alias{resizeimage}
 \title{resizeImage}
 \usage{
-resizeImage(image = NULL, number_size_factor = 1)
+resizeImage(image = NULL, resize_factor = 1)
 }
 \arguments{
 \item{image}{An one to three-dimensional array of numbers between 0 and 1}
 
-\item{number_size_factor}{A number (factor for resizing the number)}
+\item{resize_factor}{A number (factor for resizing an image)}
 }
 \description{
 Resizes an image

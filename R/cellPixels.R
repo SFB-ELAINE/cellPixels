@@ -18,6 +18,8 @@
 #' @param number_of_pixels_at_border_to_disregard A number (number of pixels
 #' at the border of the image (rows and columns) that define the region
 #' where found cells are disregarded)
+#' @param add_scale_bar A logic (add scale bar to all images that are saved
+#' if true)
 
 cellPixels <- function(input_dir = NULL,
                        nucleus_color = "blue",
@@ -25,7 +27,8 @@ cellPixels <- function(input_dir = NULL,
                        protein_in_cytosol_color = "none",
                        number_size_factor = 0.2,
                        bit_depth = NULL,
-                       number_of_pixels_at_border_to_disregard = 3) {
+                       number_of_pixels_at_border_to_disregard = 3,
+                       add_scale_bar = FALSE) {
 
   # Basics and sourcing functions ------------------------------------------
   .old.options <- options()
@@ -649,6 +652,27 @@ cellPixels <- function(input_dir = NULL,
 
     # Save all images ------------------------------------------------------
 
+    # Get information for adding a scale bar
+    length_per_pixel_x <- gsub(
+      pattern = paste(".+<Items>[[:space:]]+<Distance Id=\"X\">[[:space:]]+",
+      "<Value>(.{2,16})</Value>.+",sep=""),
+      replacement = "\\1",
+      x = metadata)
+    length_per_pixel_x <- tolower(length_per_pixel_x)
+    length_per_pixel_x <- as.numeric(length_per_pixel_x)
+
+    length_per_pixel_y <- gsub(
+      pattern = paste(".+<Items>.+<Distance Id=\"Y\">[[:space:]]+",
+                      "<Value>(.{2,16})</Value>.+",sep=""),
+      replacement = "\\1",
+      x = metadata)
+    length_per_pixel_y <- tolower(length_per_pixel_y)
+    length_per_pixel_y <- as.numeric(length_per_pixel_y)
+
+    if(length_per_pixel_x != length_per_pixel_y){
+      print("Dimension in x- and y-directions are different! ERROR!")
+    }
+
     # Save metadata in txt file
     utils::write.table(metadata, file = paste(output_dir,image_name_wo_czi,
                                   "_metadata.txt", sep = ""),
@@ -656,6 +680,10 @@ cellPixels <- function(input_dir = NULL,
 
 
     # Original image (converted to tif)
+    if(add_scale_bar){
+      image_loaded <- addScaleBar(image = image_loaded,
+                           length_per_pixel = length_per_pixel_x)
+    }
     tiff::writeTIFF(what = image_loaded,
                     where = paste(output_dir,
                                   image_name_wo_czi,
@@ -665,6 +693,12 @@ cellPixels <- function(input_dir = NULL,
                     reduce = TRUE)
 
     # Normalized and histogram-adapted images
+    if(add_scale_bar){
+      image_normalized <- addScaleBar(image = image_normalized,
+                                  length_per_pixel = length_per_pixel_x)
+      image_histogram_equalization <- addScaleBar(image = image_histogram_equalization,
+                                                  length_per_pixel = length_per_pixel_x)
+    }
     tiff::writeTIFF(what = image_normalized,
                     where = paste(output_dir,
                                   image_name_wo_czi,
@@ -682,6 +716,12 @@ cellPixels <- function(input_dir = NULL,
                     reduce = TRUE)
 
     # Images with marked nuclei
+    if(add_scale_bar){
+      Image_nuclei <- addScaleBar(image = Image_nuclei,
+                                  length_per_pixel = length_per_pixel_x)
+      Image_nuclei_numbers <- addScaleBar(image = Image_nuclei_numbers,
+                                          length_per_pixel = length_per_pixel_x)
+    }
     tiff::writeTIFF(what = Image_nuclei,
                     where = paste(output_dir,
                                   image_name_wo_czi,
@@ -699,6 +739,11 @@ cellPixels <- function(input_dir = NULL,
                     reduce = TRUE)
 
     # Images with marked nuclei and borders around the second protein in nuc
+    if(add_scale_bar){
+      Image_nuclei_numbers_proteins <- addScaleBar(
+        image = Image_nuclei_numbers_proteins,
+        length_per_pixel = length_per_pixel_x)
+    }
     if(!is.null(protein_in_nuc_color) & protein_in_nuc_color != "none"){
       tiff::writeTIFF(what = Image_nuclei_numbers_proteins,
                       where = paste(output_dir,
@@ -711,6 +756,11 @@ cellPixels <- function(input_dir = NULL,
 
     # Images with marked nuclei and borders around the third protein in
     # cell bodies (proteins in cytosol)
+    if(add_scale_bar){
+      Image_cytosol_numbers_proteins <- addScaleBar(
+        image = Image_cytosol_numbers_proteins,
+        length_per_pixel = length_per_pixel_x)
+    }
     if(!is.null(protein_in_cytosol_color) & protein_in_cytosol_color != "none"){
       tiff::writeTIFF(what = Image_cytosol_numbers_proteins,
                       where = paste(output_dir,
@@ -722,6 +772,14 @@ cellPixels <- function(input_dir = NULL,
     }
 
     # Images with left out nuclei and only with positions of nuclei
+    if(add_scale_bar){
+      Image_nucleus_part <- addScaleBar(
+        image = Image_nucleus_part,
+        length_per_pixel = length_per_pixel_x)
+      Image_non_nucleus_part <- addScaleBar(
+        image = Image_non_nucleus_part,
+        length_per_pixel = length_per_pixel_x)
+    }
     tiff::writeTIFF(what = Image_nucleus_part,
                     where = paste(output_dir,
                                   image_name_wo_czi,
@@ -748,6 +806,7 @@ cellPixels <- function(input_dir = NULL,
                         "number_size_factor", "output_dir",
                         "protein_in_cytosol_color",
                         "protein_in_nuc_color",
+                        "add_scale_bar",
                         ".old.options")
 
     remove_variables <- list_of_variables[

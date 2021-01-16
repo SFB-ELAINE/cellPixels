@@ -13,7 +13,8 @@ cellPixels(
   protein_in_cytosol_color = "none",
   number_size_factor = 0.2,
   bit_depth = NULL,
-  number_of_pixels_at_border_to_disregard = 3
+  number_of_pixels_at_border_to_disregard = 3,
+  add_scale_bar = TRUE
 )
 }
 \arguments{
@@ -35,6 +36,9 @@ numbering nuclei)}
 \item{number_of_pixels_at_border_to_disregard}{A number (number of pixels
 at the border of the image (rows and columns) that define the region
 where found cells are disregarded)}
+
+\item{add_scale_bar}{A logic (add scale bar to all images that are saved
+if true)}
 }
 \description{
 Main function for counting pixels in different regions
