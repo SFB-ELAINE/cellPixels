@@ -57,11 +57,20 @@ cellPixels <- function(input_dir = NULL,
 
   # Data input and output --------------------------------------------------
 
-  # Save the file names (tifs) ---------------------------------------------
+  # Save the file names (prefer czi, if available) -------------------------
   file_names <- list.files(path = input_dir)
-  #file_names <- file_names[grepl("tif$", file_names)]
   file_names <- file_names[grepl("czi$", file_names)]
-  number_of_czis <- length(file_names)
+
+  if(length(file_names) == 0){
+    print("No czi files found, looking for tif files.")
+    file_names <- list.files(path = input_dir)
+    file_names <- file_names[grepl("tif$", file_names)]
+    image_format <- "tif"
+  }else{
+    image_format <- "czi"
+  }
+
+  number_of_images <- length(file_names)
 
   # Read in Python package for reading czi files
   # (Users will be asked to install miniconda
@@ -69,8 +78,9 @@ cellPixels <- function(input_dir = NULL,
   reticulate::py_install("czifile")
   zis <- reticulate::import("czifile")
 
-  # If there is now tif-file, close function call
-  if(number_of_czis == 0){
+  # If there is now image file (czi or tif), close function call
+  if(number_of_images == 0){
+    print("No image found.")
     return()
   }
 
@@ -88,26 +98,26 @@ cellPixels <- function(input_dir = NULL,
   # Create empty data fram -------------------------------------------------
   df_results <- data.frame(
     "fileName" = file_names,
-    "manual_quality_check" = rep(NA, number_of_czis),
-    "dimension_x" = rep(NA, number_of_czis),
-    "dimension_y" = rep(NA, number_of_czis),
-    "number_of_nuclei" = rep(NA, number_of_czis),
-    "color_of_second_protein_in_nuclei" = rep(NA, number_of_czis),
-    "number_of_nuclei_with_second_protein" = rep(NA, number_of_czis),
-    "color_of_third_protein_in_cytosol" = rep(NA, number_of_czis),
-    "number_of_cells_with_third_protein" = rep(NA, number_of_czis),
-    "intensity_sum_red_full" = rep(NA, number_of_czis),
-    "intensity_sum_green_full" = rep(NA, number_of_czis),
-    "intensity_sum_blue_full" = rep(NA, number_of_czis),
-    "intensity_sum_red_nucleus_region" = rep(NA, number_of_czis),
-    "intensity_sum_green_nucleus_region" = rep(NA, number_of_czis),
-    "intensity_sum_blue_nucleus_region" = rep(NA, number_of_czis),
-    "intensity_sum_red_without_nucleus_region" = rep(NA, number_of_czis),
-    "intensity_sum_green_without_nucleus_region" = rep(NA, number_of_czis),
-    "intensity_sum_blue_without_nucleus_region" = rep(NA, number_of_czis),
-    "exposure_time_channel0" = rep(NA, number_of_czis),
-    "exposure_time_channel1" = rep(NA, number_of_czis),
-    "exposure_time_channel2" = rep(NA, number_of_czis))
+    "manual_quality_check" = rep(NA, number_of_images),
+    "dimension_x" = rep(NA, number_of_images),
+    "dimension_y" = rep(NA, number_of_images),
+    "number_of_nuclei" = rep(NA, number_of_images),
+    "color_of_second_protein_in_nuclei" = rep(NA, number_of_images),
+    "number_of_nuclei_with_second_protein" = rep(NA, number_of_images),
+    "color_of_third_protein_in_cytosol" = rep(NA, number_of_images),
+    "number_of_cells_with_third_protein" = rep(NA, number_of_images),
+    "intensity_sum_red_full" = rep(NA, number_of_images),
+    "intensity_sum_green_full" = rep(NA, number_of_images),
+    "intensity_sum_blue_full" = rep(NA, number_of_images),
+    "intensity_sum_red_nucleus_region" = rep(NA, number_of_images),
+    "intensity_sum_green_nucleus_region" = rep(NA, number_of_images),
+    "intensity_sum_blue_nucleus_region" = rep(NA, number_of_images),
+    "intensity_sum_red_without_nucleus_region" = rep(NA, number_of_images),
+    "intensity_sum_green_without_nucleus_region" = rep(NA, number_of_images),
+    "intensity_sum_blue_without_nucleus_region" = rep(NA, number_of_images),
+    "exposure_time_channel0" = rep(NA, number_of_images),
+    "exposure_time_channel1" = rep(NA, number_of_images),
+    "exposure_time_channel2" = rep(NA, number_of_images))
 
   # Reduce the number of pixels for the borders because we will go from
   # 0 to number_of_pixels_at_border_to_disregard-1
@@ -116,13 +126,18 @@ cellPixels <- function(input_dir = NULL,
 
 
   # Go through every image in the directory --------------------------------
-  for(i in 1:number_of_czis){
+  for(i in 1:number_of_images){
 
     print(paste("Dealing with file >>", file_names[i], "<<. (It is now ",
                 Sys.time(), ".)", sep=""))
 
     ## Get the image name without the ".tif" ending
     #image_name_wo_czi <- gsub("\\.tif", "", file_names[i])
+    if(image_format == "czi"){
+
+    }else if(image_format == "tif"){
+
+    }
     # Get the image name without the ".czi" ending
     image_name_wo_czi <- gsub("\\.czi", "", file_names[i])
 
@@ -801,7 +816,7 @@ cellPixels <- function(input_dir = NULL,
     list_of_variables <- ls()
     keep_variables <- c("df_results", "zis",
                         "bit_depth", "file_names", "input_dir",
-                        "nucleus_color","number_of_czis",
+                        "nucleus_color","number_of_images",
                         "number_of_pixels_at_border_to_disregard",
                         "number_size_factor", "output_dir",
                         "protein_in_cytosol_color",
