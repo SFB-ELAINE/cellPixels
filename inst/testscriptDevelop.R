@@ -1,5 +1,6 @@
 # Testscript for using the R package cellPixels for development  +++++++++++
 # Author: Kai Budde
+# Created:
 # Last changed: 2021/01/09
 
 #   Install Package:           'Ctrl + Shift + B'
@@ -18,7 +19,7 @@ graphics.off()
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 # Directory of the images
-input_dir <- "test4/"
+input_dir <- "testleonie/"
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -51,9 +52,13 @@ load_all()
 ## FIRST EXAMPLE DIRECTORY -------------------------------------------------
 
 df_results <- cellPixels(input_dir = input_dir,
-                         nucleus_color = "blue",
-                         protein_in_nuc_color = "red",
-                         protein_in_cytosol_color = "green",
-                         number_size_factor = 0.2)
+                         nucleus_color = "green",
+                         protein_in_nuc_color = "none",
+                         protein_in_cytosol_color = "none",
+                         number_size_factor = 0.2,
+                         thresh_w_h_nuc = 5,
+                         thresh_offset = 0.0001,
+                         blur_sigma = 0,
+                         use_histogram_equalized = TRUE)
 
 save(df_results, file=paste(input_dir, "output/df_results.Rda", sep=""))

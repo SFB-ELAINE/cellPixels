@@ -28,7 +28,11 @@ cellPixels <- function(input_dir = NULL,
                        number_size_factor = 0.2,
                        bit_depth = NULL,
                        number_of_pixels_at_border_to_disregard = 3,
-                       add_scale_bar = FALSE) {
+                       add_scale_bar = FALSE,
+                       thresh_w_h_nuc = NULL,
+                       thresh_offset = NULL,
+                       blur_sigma = NULL,
+                       use_histogram_equalized = FALSE) {
 
   # Basics and sourcing functions ------------------------------------------
   .old.options <- options()
@@ -131,87 +135,143 @@ cellPixels <- function(input_dir = NULL,
     print(paste("Dealing with file >>", file_names[i], "<<. (It is now ",
                 Sys.time(), ".)", sep=""))
 
-    ## Get the image name without the ".tif" ending
-    #image_name_wo_czi <- gsub("\\.tif", "", file_names[i])
     if(image_format == "czi"){
+      # Get the image name without the ".czi" ending
+      image_name_wo_czi <- gsub("\\.czi", "", file_names[i])
 
     }else if(image_format == "tif"){
+      # Get the image name without the ".tif" ending
+      image_name_wo_czi <- gsub("\\.tif", "", file_names[i])
 
     }
-    # Get the image name without the ".czi" ending
-    image_name_wo_czi <- gsub("\\.czi", "", file_names[i])
 
     # Get the image path
     image_path <- paste(input_dir, file_names[i], sep="/")
 
-    ## Load image (hyperstack)
-    #image_loaded <- tiff::readTIFF(source = image_path, info = FALSE,
-    #                               all = TRUE,
-    #                               convert = FALSE, as.is = TRUE)
 
-    # Load image directly from czi and save bit depth of the image
-    image_loaded <- zis$imread(image_path)
+    # Load image (and metainformation if available)
 
-    czi_class <- zis$CziFile(image_path)
-    bit_depth <- czi_class$dtype
-    if(bit_depth == "uint16"){
-      bit_depth <- 16
-    }else if(bit_depth == "uint8"){
-      bit_depth <- 8
-    }else{
-      print(paste("Something went wrong with the bit depth.", sep=""))
-      return()
+    if(image_format == "czi"){
+      # Load image directly from czi and save bit depth of the image
+      image_loaded <- zis$imread(image_path)
+
+      czi_class <- zis$CziFile(image_path)
+      bit_depth <- czi_class$dtype
+      if(bit_depth == "uint16"){
+        bit_depth <- 16
+      }else if(bit_depth == "uint8"){
+        bit_depth <- 8
+      }else{
+        print(paste("Something went wrong with the bit depth.", sep=""))
+        return()
+      }
+
+      # ComponentBitCount -> shows the number of bits the camera can record
+      # (is 0 or not specified if it is the same as dtype)
+      metadata <- czi_class$metadata(czi_class)
+
+      # Save the dimension information
+      # B: (Acquisition) Block index in segmented experiments.
+      # C: Channel in a Multi-Channel data set
+      # X: Pixel index / offset in the X direction. Used for tiled images.
+      # Y: Pixel index / offset in the y direction. Used for tiled images.
+      # 0: Data contains uncompressed pixels.
+
+      axes <- czi_class$axes
+      axes <- unlist(strsplit(x = axes, split = ""))
+      pos_channels <- grep(pattern = "C", x = axes)
+      pos_x <- grep(pattern = "X", x = axes)
+      pos_y <- grep(pattern = "Y", x = axes)
+
+      camera_bit_depth <- gsub(
+        pattern = ".+<ComponentBitCount>(.+)</ComponentBitCount>.+",
+        replacement = "\\1",
+        x = metadata)
+      camera_bit_depth <- as.numeric(camera_bit_depth)
+      if(!is.na(camera_bit_depth) && (camera_bit_depth != 0)){
+        bit_depth <- camera_bit_depth
+      }
+
+      # Find red, green, and blue channel ID
+      wavelengths <- gsub(
+        pattern =  paste(".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
+                         ".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
+                         ".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
+                         sep=""),
+        replacement = "\\1,\\2,\\3",
+        x = metadata)
+      wavelengths <- as.numeric(strsplit(wavelengths, split = ",")[[1]])
+
+      red_id <- which(wavelengths == max(wavelengths))
+      blue_id <- which(wavelengths == min(wavelengths))
+
+      if(length(wavelengths) == 3){
+        green_id <- c(1:3)[!(c(1:3) %in% red_id | c(1:3) %in% blue_id)]
+      }else{
+        print("There are more or fewer than 3 wavelengths.")
+        return()
+      }
+
+      rgb_layers <- c(red_id, green_id, blue_id)
+
+      rm(czi_class)
+
+      # Make a 3-D array of the image
+      number_of_channels <- dim(image_loaded)[pos_channels]
+      dim_x <- dim(image_loaded)[pos_x]
+      dim_y <- dim(image_loaded)[pos_y]
+
+      if(number_of_channels == 3){
+
+        # Delete the dimensions of an array which have only one level
+        image_loaded <- drop(image_loaded)
+
+        # Permute dimensions of array
+        pos_x <- pos_x - min(pos_x, pos_y, pos_channels) + 1
+        pos_y <- pos_y - min(pos_x, pos_y, pos_channels) + 1
+        pos_channels <- pos_channels - min(pos_x, pos_y, pos_channels) + 1
+
+        image_loaded <- aperm(a = image_loaded, c(pos_y, pos_x, pos_channels))
+
+        # Reorder the layers accoring to the colors
+        copy_image_loaded <- image_loaded
+
+        image_loaded[,,1] <- copy_image_loaded[,,rgb_layers[1]]
+        image_loaded[,,2] <- copy_image_loaded[,,rgb_layers[2]]
+        image_loaded[,,3] <- copy_image_loaded[,,rgb_layers[3]]
+
+        rm(copy_image_loaded)
+
+      }else{
+        print(paste("We do not have a tif-image with three layers",
+                    " representing red, green, and blue.", sep=""))
+        return()
+      }
+
+      image_loaded <- image_loaded/(2^bit_depth-1)
+
+
+      # Get the exposure time for every layer
+      exposure_time <- gsub(
+        pattern =  paste(".+<ExposureTime>(.+)</ExposureTime>.+",
+                         ".+<ExposureTime>(.+)</ExposureTime>.+",
+                         ".+<ExposureTime>(.+)</ExposureTime>.+",
+                         sep=""),
+        replacement = "\\1,\\2,\\3",
+        x = metadata)
+
+      exposure_time <- unlist(strsplit(x = exposure_time, split = ","))
+
+    }else if(image_format == "tif"){
+      # Load image (hyperstack)
+      image_loaded <- tiff::readTIFF(source = image_path, info = FALSE,
+                                     all = TRUE,
+                                     convert = FALSE, as.is = FALSE)
+      if(is.list(image_loaded)){
+        image_loaded <- image_loaded[[1]]
+      }
     }
 
-    # ComponentBitCount -> shows the number of bits the camera can record
-    # (is 0 or not specified if it is the same as dtype)
-    metadata <- czi_class$metadata(czi_class)
-
-    # Save the dimension information
-    # B: (Acquisition) Block index in segmented experiments.
-    # C: Channel in a Multi-Channel data set
-    # X: Pixel index / offset in the X direction. Used for tiled images.
-    # Y: Pixel index / offset in the y direction. Used for tiled images.
-    # 0: Data contains uncompressed pixels.
-
-    axes <- czi_class$axes
-    axes <- unlist(strsplit(x = axes, split = ""))
-    pos_channels <- grep(pattern = "C", x = axes)
-    pos_x <- grep(pattern = "X", x = axes)
-    pos_y <- grep(pattern = "Y", x = axes)
-
-    camera_bit_depth <- gsub(
-      pattern = ".+<ComponentBitCount>(.+)</ComponentBitCount>.+",
-      replacement = "\\1",
-      x = metadata)
-    camera_bit_depth <- as.numeric(camera_bit_depth)
-    if(!is.na(camera_bit_depth) && (camera_bit_depth != 0)){
-      bit_depth <- camera_bit_depth
-    }
-
-    # Find red, green, and blue channel ID
-    wavelengths <- gsub(
-      pattern =  paste(".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
-                       ".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
-                       ".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
-                       sep=""),
-      replacement = "\\1,\\2,\\3",
-      x = metadata)
-    wavelengths <- as.numeric(strsplit(wavelengths, split = ",")[[1]])
-
-    red_id <- which(wavelengths == max(wavelengths))
-    blue_id <- which(wavelengths == min(wavelengths))
-
-    if(length(wavelengths) == 3){
-      green_id <- c(1:3)[!(c(1:3) %in% red_id | c(1:3) %in% blue_id)]
-    }else{
-      print("There are more or fewer than 3 wavelengths.")
-      return()
-    }
-
-    rgb_layers <- c(red_id, green_id, blue_id)
-
-    rm(czi_class)
 
     # # Combine every channel of the image (separate list item) into one
     # # matrix
@@ -235,38 +295,6 @@ cellPixels <- function(input_dir = NULL,
     #
     # }
 
-    # Make a 3-D array of the image
-    number_of_channels <- dim(image_loaded)[pos_channels]
-    dim_x <- dim(image_loaded)[pos_x]
-    dim_y <- dim(image_loaded)[pos_y]
-
-    if(number_of_channels == 3){
-
-      # Delete the dimensions of an array which have only one level
-      image_loaded <- drop(image_loaded)
-
-      # Permute dimensions of array
-      pos_x <- pos_x - min(pos_x, pos_y, pos_channels) + 1
-      pos_y <- pos_y - min(pos_x, pos_y, pos_channels) + 1
-      pos_channels <- pos_channels - min(pos_x, pos_y, pos_channels) + 1
-
-      image_loaded <- aperm(a = image_loaded, c(pos_y, pos_x, pos_channels))
-
-      # Reorder the layers accoring to the colors
-      copy_image_loaded <- image_loaded
-
-      image_loaded[,,1] <- copy_image_loaded[,,rgb_layers[1]]
-      image_loaded[,,2] <- copy_image_loaded[,,rgb_layers[2]]
-      image_loaded[,,3] <- copy_image_loaded[,,rgb_layers[3]]
-
-      rm(copy_image_loaded)
-
-    }else{
-      print(paste("We do not have a tif-image with three layers",
-                  " representing red, green, and blue.", sep=""))
-      return()
-    }
-
     # Convert to intensities between 0 and 1
 
     # # Find the possible bit depth
@@ -279,27 +307,12 @@ cellPixels <- function(input_dir = NULL,
     #   }else if(max_intensity <= (2^16)-1){
     #     bit_depth <- 16
     #   }else{
-    #     print(paste("Bit depth is higher than 16. Somehting might",
+    #     print(paste("Bit depth is higher than 16. Something might",
     #                 " be wrong.", sep=""))
     #     return()
     #   }
     #
     # }
-
-
-    image_loaded <- image_loaded/(2^bit_depth-1)
-
-
-    # Get the exposure time for every layer
-    exposure_time <- gsub(
-      pattern =  paste(".+<ExposureTime>(.+)</ExposureTime>.+",
-                       ".+<ExposureTime>(.+)</ExposureTime>.+",
-                       ".+<ExposureTime>(.+)</ExposureTime>.+",
-                       sep=""),
-      replacement = "\\1,\\2,\\3",
-      x = metadata)
-
-    exposure_time <- unlist(strsplit(x = exposure_time, split = ","))
 
 
 
@@ -316,20 +329,34 @@ cellPixels <- function(input_dir = NULL,
     # Find the nuclei ------------------------------------------------------
 
     # Save only color layer of nuclei
-    image_nuclei <- getLayer(image = image_loaded, layer = nucleus_color)
+    if(use_histogram_equalized){
+      image_nuclei <- getLayer(image = image_histogram_equalization, layer = nucleus_color)
+    }else{
+      image_nuclei <- getLayer(image = image_loaded, layer = nucleus_color)
+    }
+
     Image_nuclei <- EBImage::Image(image_nuclei)
     rm(image_nuclei)
     #display(Image_nuclei)
 
     # Blur the image
-    Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 7)
+    if(is.null(blur_sigma)){
+      Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 7)
+    }else if(blur_sigma > 0){
+      Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = blur_sigma)
+    }
+
 
     # Mask the nuclei
-    if(grepl(pattern = "_20x_", file_names[i])){
-      # Smaller moving rectangle if the magnification is 20x (instead of 40x)
-      nmask <- EBImage::thresh(Image_nuclei, w=15, h=15, offset=0.01)
+    if(is.null(thresh_w_h_nuc) || is.null(thresh_offset)){
+      if(grepl(pattern = "_20x_", file_names[i])){
+        # Smaller moving rectangle if the magnification is 20x (instead of 40x)
+        nmask <- EBImage::thresh(Image_nuclei, w=15, h=15, offset=0.01)
+      }else{
+        nmask <- EBImage::thresh(Image_nuclei, w=35, h=35, offset=0.01)
+      }
     }else{
-      nmask <- EBImage::thresh(Image_nuclei, w=35, h=35, offset=0.01)
+      nmask <- EBImage::thresh(Image_nuclei, w=thresh_w_h_nuc, h=thresh_w_h_nuc, offset=thresh_offset)
     }
 
 
@@ -661,44 +688,49 @@ cellPixels <- function(input_dir = NULL,
     df_results[i,"intensity_sum_green_without_nucleus_region"] <- sum(Image_non_nucleus_part[,,2])
     df_results[i,"intensity_sum_blue_without_nucleus_region"] <- sum(Image_non_nucleus_part[,,3])
 
-    df_results[i,"exposure_time_channel0"] <- exposure_time[1]
-    df_results[i,"exposure_time_channel1"] <- exposure_time[2]
-    df_results[i,"exposure_time_channel2"] <- exposure_time[3]
+    if(image_format == "czi"){
+      df_results[i,"exposure_time_channel0"] <- exposure_time[1]
+      df_results[i,"exposure_time_channel1"] <- exposure_time[2]
+      df_results[i,"exposure_time_channel2"] <- exposure_time[3]
+    }
 
     # Save all images ------------------------------------------------------
 
-    # Get information for adding a scale bar
-    length_per_pixel_x <- gsub(
-      pattern = paste(".+<Items>[[:space:]]+<Distance Id=\"X\">[[:space:]]+",
-      "<Value>(.{2,16})</Value>.+",sep=""),
-      replacement = "\\1",
-      x = metadata)
-    length_per_pixel_x <- tolower(length_per_pixel_x)
-    length_per_pixel_x <- as.numeric(length_per_pixel_x)
+    if(image_format == "czi"){
+      # Get information for adding a scale bar
+      length_per_pixel_x <- gsub(
+        pattern = paste(".+<Items>[[:space:]]+<Distance Id=\"X\">[[:space:]]+",
+                        "<Value>(.{2,16})</Value>.+",sep=""),
+        replacement = "\\1",
+        x = metadata)
+      length_per_pixel_x <- tolower(length_per_pixel_x)
+      length_per_pixel_x <- as.numeric(length_per_pixel_x)
 
-    length_per_pixel_y <- gsub(
-      pattern = paste(".+<Items>.+<Distance Id=\"Y\">[[:space:]]+",
-                      "<Value>(.{2,16})</Value>.+",sep=""),
-      replacement = "\\1",
-      x = metadata)
-    length_per_pixel_y <- tolower(length_per_pixel_y)
-    length_per_pixel_y <- as.numeric(length_per_pixel_y)
+      length_per_pixel_y <- gsub(
+        pattern = paste(".+<Items>.+<Distance Id=\"Y\">[[:space:]]+",
+                        "<Value>(.{2,16})</Value>.+",sep=""),
+        replacement = "\\1",
+        x = metadata)
+      length_per_pixel_y <- tolower(length_per_pixel_y)
+      length_per_pixel_y <- as.numeric(length_per_pixel_y)
 
-    if(length_per_pixel_x != length_per_pixel_y){
-      print("Dimension in x- and y-directions are different! ERROR!")
+      if(length_per_pixel_x != length_per_pixel_y){
+        print("Dimension in x- and y-directions are different! ERROR!")
+      }
+
+      # Save metadata in txt file
+      utils::write.table(metadata, file = paste(output_dir,image_name_wo_czi,
+                                                "_metadata.txt", sep = ""),
+                         sep = "", row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+
+      # Original image (converted to tif)
+      if(add_scale_bar){
+        image_loaded <- addScaleBar(image = image_loaded,
+                                    length_per_pixel = length_per_pixel_x)
+      }
     }
 
-    # Save metadata in txt file
-    utils::write.table(metadata, file = paste(output_dir,image_name_wo_czi,
-                                  "_metadata.txt", sep = ""),
-                sep = "", row.names = FALSE, col.names = FALSE, quote = FALSE)
-
-
-    # Original image (converted to tif)
-    if(add_scale_bar){
-      image_loaded <- addScaleBar(image = image_loaded,
-                           length_per_pixel = length_per_pixel_x)
-    }
     tiff::writeTIFF(what = image_loaded,
                     where = paste(output_dir,
                                   image_name_wo_czi,
@@ -710,7 +742,7 @@ cellPixels <- function(input_dir = NULL,
     # Normalized and histogram-adapted images
     if(add_scale_bar){
       image_normalized <- addScaleBar(image = image_normalized,
-                                  length_per_pixel = length_per_pixel_x)
+                                      length_per_pixel = length_per_pixel_x)
       image_histogram_equalization <- addScaleBar(image = image_histogram_equalization,
                                                   length_per_pixel = length_per_pixel_x)
     }
@@ -815,13 +847,16 @@ cellPixels <- function(input_dir = NULL,
 
     list_of_variables <- ls()
     keep_variables <- c("df_results", "zis",
-                        "bit_depth", "file_names", "input_dir",
+                        "bit_depth", "file_names", "image_format",
+                        "input_dir",
                         "nucleus_color","number_of_images",
                         "number_of_pixels_at_border_to_disregard",
                         "number_size_factor", "output_dir",
                         "protein_in_cytosol_color",
                         "protein_in_nuc_color",
-                        "add_scale_bar",
+                        "add_scale_bar", "thresh_w_h_nuc",
+                        "thresh_offset", "blur_sigma",
+                        "use_histogram_equalized",
                         ".old.options")
 
     remove_variables <- list_of_variables[
