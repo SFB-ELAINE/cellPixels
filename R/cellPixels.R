@@ -672,8 +672,8 @@ cellPixels <- function(input_dir = NULL,
     }
 
     if(!is.null(protein_in_cytosol_color) & protein_in_cytosol_color != "none"){
-      "color_of_third_protein_in_cytosol" <- protein_in_cytosol_color
-      "number_of_cells_with_third_protein" <- cell_with_proteins_No
+      df_results[i,"color_of_third_protein_in_cytosol"] <- protein_in_cytosol_color
+      df_results[i,"number_of_cells_with_third_protein"] <- cell_with_proteins_No
     }
 
     df_results[i,"intensity_sum_red_full"] <- sum(image_loaded[,,1])
