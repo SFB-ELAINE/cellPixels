@@ -14,7 +14,11 @@ cellPixels(
   number_size_factor = 0.2,
   bit_depth = NULL,
   number_of_pixels_at_border_to_disregard = 3,
-  add_scale_bar = FALSE
+  add_scale_bar = FALSE,
+  thresh_w_h_nuc = NULL,
+  thresh_offset = NULL,
+  blur_sigma = NULL,
+  use_histogram_equalized = FALSE
 )
 }
 \arguments{

@@ -119,6 +119,9 @@ cellPixels <- function(input_dir = NULL,
     "intensity_sum_red_without_nucleus_region" = rep(NA, number_of_images),
     "intensity_sum_green_without_nucleus_region" = rep(NA, number_of_images),
     "intensity_sum_blue_without_nucleus_region" = rep(NA, number_of_images),
+    "intensity_mean_red_background" = rep(NA, number_of_images),
+    "intensity_mean_green_background" = rep(NA, number_of_images),
+    "intensity_mean_blue_background" = rep(NA, number_of_images),
     "exposure_time_channel0" = rep(NA, number_of_images),
     "exposure_time_channel1" = rep(NA, number_of_images),
     "exposure_time_channel2" = rep(NA, number_of_images))
@@ -315,6 +318,29 @@ cellPixels <- function(input_dir = NULL,
     # }
 
 
+    # -------------------------------------------------------------------- #
+    # ------------------ Find background intensity ----------------------- #
+    # -------------------------------------------------------------------- #
+
+    # Go through every layer and save the foreground as a mask
+
+    for(j in 1:number_of_channels){
+      image_dummy <- image_loaded[,,j]
+      image_dummy <- EBImage::gblur(image_dummy, sigma = 5)
+
+      if(j == 1){
+        mask_foreground <- EBImage::thresh(image_dummy, w=50, h=50, offset=0.001)
+      }else{
+
+        # Add the foreground to one mask
+        mask_foreground_dummy <- EBImage::thresh(image_dummy, w=50, h=50, offset=0.001)
+        mask_foreground <- mask_foreground + as.numeric(mask_foreground_dummy > mask_foreground)
+      }
+
+    }
+    rm(j)
+    rm(image_dummy)
+    rm(mask_foreground_dummy)
 
     # -------------------------------------------------------------------- #
     # ---------------------- Data manipulation --------------------------- #
@@ -322,6 +348,18 @@ cellPixels <- function(input_dir = NULL,
 
     # Normalize intensity --------------------------------------------------
     image_normalized <- normalizeIntensity(image = image_loaded)
+
+    # Get Background of normalized image and loaded image
+    image_normalized_foreground <- image_normalized
+    image_normalized_background <- image_normalized
+    image_background <- image_loaded
+
+    for(j in 1:number_of_channels){
+      image_normalized_foreground[,,j] <- image_normalized[,,j]*mask_foreground
+      image_normalized_background[,,j] <- image_normalized[,,j]*(-1*mask_foreground+1)
+      image_background[,,j] <- image_loaded[,,j]*(-1*mask_foreground+1)
+    }
+    rm(j)
 
     # Use Contrast Limited Adaptive Histogram Equalization
     image_histogram_equalization <- EBImage::clahe(x = image_loaded, nx = 4)
@@ -688,6 +726,11 @@ cellPixels <- function(input_dir = NULL,
     df_results[i,"intensity_sum_green_without_nucleus_region"] <- sum(Image_non_nucleus_part[,,2])
     df_results[i,"intensity_sum_blue_without_nucleus_region"] <- sum(Image_non_nucleus_part[,,3])
 
+    df_results[i,"intensity_mean_red_background"] <- mean(image_background[,,1])
+    df_results[i,"intensity_mean_green_background"] <- mean(image_background[,,2])
+    df_results[i,"intensity_mean_blue_background"] <- mean(image_background[,,3])
+
+
     if(image_format == "czi"){
       df_results[i,"exposure_time_channel0"] <- exposure_time[1]
       df_results[i,"exposure_time_channel1"] <- exposure_time[2]
@@ -750,6 +793,14 @@ cellPixels <- function(input_dir = NULL,
                     where = paste(output_dir,
                                   image_name_wo_czi,
                                   "_normalized.tif",
+                                  sep = ""),
+                    bits.per.sample = 8L, compression = "none",
+                    reduce = TRUE)
+
+    tiff::writeTIFF(what = image_normalized_background,
+                    where = paste(output_dir,
+                                  image_name_wo_czi,
+                                  "_normalized_background.tif",
                                   sep = ""),
                     bits.per.sample = 8L, compression = "none",
                     reduce = TRUE)
