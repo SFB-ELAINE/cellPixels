@@ -7,6 +7,8 @@
 #' @author Kai Budde
 #' @export cellPixels
 #' @param input_dir A character (directory that contains all images)
+#' @param apotome A boolean (TRUE if Apotome was used)
+#' @param apotome_section A boolean (TRUE is sectioned image shall be used)
 #' @param nucleus_color A character (color (layer) of nuclei)
 #' @param protein_in_nuc_color A character (color (layer) of protein
 #' expected in nucleus)
@@ -22,6 +24,8 @@
 #' if true)
 
 cellPixels <- function(input_dir = NULL,
+                       apotome = FALSE,
+                       apotome_section = TRUE,
                        nucleus_color = "blue",
                        protein_in_nuc_color = "none",
                        protein_in_cytosol_color = "none",
@@ -119,10 +123,19 @@ cellPixels <- function(input_dir = NULL,
     "intensity_sum_red_without_nucleus_region" = rep(NA, number_of_images),
     "intensity_sum_green_without_nucleus_region" = rep(NA, number_of_images),
     "intensity_sum_blue_without_nucleus_region" = rep(NA, number_of_images),
+    "intensity_sum_red_foreground" = rep(NA, number_of_images),
+    "intensity_sum_green_foreground" = rep(NA, number_of_images),
+    "intensity_sum_blue_foreground" = rep(NA, number_of_images),
+    "intensity_sum_red_foreground_without_nucleus_region" = rep(NA, number_of_images),
+    "intensity_sum_green_foreground_without_nucleus_region" = rep(NA, number_of_images),
+    "intensity_sum_blue_foreground_without_nucleus_region" = rep(NA, number_of_images),
     "intensity_mean_red_background" = rep(NA, number_of_images),
     "intensity_mean_green_background" = rep(NA, number_of_images),
     "intensity_mean_blue_background" = rep(NA, number_of_images),
+    "number_of_total_pixels" = rep(NA, number_of_images),
     "number_of_pixels_nucleus_region" = rep(NA, number_of_images),
+    "number_of_pixels_foreground" = rep(NA, number_of_images),
+    "number_of_pixels_foreground_without_nucleus_region" = rep(NA, number_of_images),
     "exposure_time_channel0" = rep(NA, number_of_images),
     "exposure_time_channel1" = rep(NA, number_of_images),
     "exposure_time_channel2" = rep(NA, number_of_images))
@@ -175,18 +188,118 @@ cellPixels <- function(input_dir = NULL,
       metadata <- czi_class$metadata(czi_class)
 
       # Save the dimension information
-      # B: (Acquisition) Block index in segmented experiments.
-      # C: Channel in a Multi-Channel data set
       # X: Pixel index / offset in the X direction. Used for tiled images.
       # Y: Pixel index / offset in the y direction. Used for tiled images.
+      # C: Channel in a Multi-Channel data set.
+      # Z: Slice index (Z – direction).
+      # T: Time point in a sequentially acquired series of data.
+      # R: Rotation – used in acquisition modes where the data is recorded
+      #    from various angles.
+      # S: Scene – for clustering items in X/Y direction (data belonging to
+      #   contiguous regions of interests in a mosaic image).
+      # B: (Acquisition) Block index in segmented experiments.
+      # H: Phase index – for specific acquisition methods.
+      # M: Mosaic tile index – to reconstruct the  image acquisition order
+      #    and to be used in conjunction with a global position list and the
+      #    scaling information to define the pixel offset (alternative to
+      #    using StartX, StartY to allow multi-M SubBlocks in case of
+      #    homogenous mosaics, i.e. all tile share the same position list)
+
       # 0: Data contains uncompressed pixels.
 
       axes <- czi_class$axes
       axes <- unlist(strsplit(x = axes, split = ""))
       pos_channels <- grep(pattern = "C", x = axes)
+      number_of_channels <- dim(image_loaded)[pos_channels]
       pos_x <- grep(pattern = "X", x = axes)
+      dim_x <- dim(image_loaded)[pos_x]
       pos_y <- grep(pattern = "Y", x = axes)
+      dim_y <- dim(image_loaded)[pos_y]
 
+      # Check for multiple scenes
+      if("S" %in% axes){
+        pos_scenes <- grep(pattern = "S", x = axes)
+        number_scenes <- dim(image_loaded)[pos_scenes]
+        if(number_scenes > 1){
+          print("More than one scene in image file.")
+        }
+      }
+
+      # Check for phases (with apotome)
+      if("H" %in% axes){
+        pos_phases <- grep(pattern = "H", x = axes)
+        number_phases <- dim(image_loaded)[pos_phases]
+
+        if(!apotome){
+          print("Apotome was used. Parameter is set TRUE.")
+          apotome <- TRUE
+        }
+      }
+
+      # Work with apotome image ###
+      # Reduce apotome layers to one
+      # Algorithm taken from SCHAEFER et al. (2004)
+      # ["Structured illumination microscopy: artefact analysis and
+      #   reduction utilizing a parameter optimization approach"]
+
+      if(apotome){
+
+        if(apotome_section){
+          image_sectioned <- image_loaded[1,,,,,]
+        }else{
+          image_conventional <- image_loaded[1,,,,,]
+        }
+
+
+        for(chan in 1:number_of_channels){
+
+          cos_term <- 0
+          sin_term <- 0
+          conv_term <- 0
+
+          for(phase in 1:number_phases){
+
+            if(pos_phases == 1 & pos_channels == 3){
+              if(apotome_section){
+                # cos terms
+                cos_term <- cos_term + image_loaded[phase,,chan,,,] *
+                  cos(2*pi*(phase-1)/number_phases)
+
+                # sin terms
+                sin_term <- sin_term + image_loaded[phase,,chan,,,] *
+                  sin(2*pi*(phase-1)/number_phases)
+              }else{
+                # conventional term
+                conv_term <- conv_term + image_loaded[phase,,chan,,,]
+              }
+
+            }else{
+              print("Position of phases not 1.")
+            }
+
+          }
+
+          cos_term <- (2/number_phases) * cos_term
+          sin_term <- (2/number_phases) * sin_term
+          conv_term <- conv_term / number_phases
+
+          if(apotome_section){
+            image_sectioned[chan,,] <- sqrt(cos_term^2+sin_term^2)
+          }else{
+            image_conventional[chan,,] <- conv_term
+          }
+
+        }
+
+        if(apotome_section){
+          image_loaded <- image_sectioned
+        }else{
+          image_loaded <- image_conventional
+        }
+
+      }
+
+      # Get bit depth of camera
       camera_bit_depth <- gsub(
         pattern = ".+<ComponentBitCount>(.+)</ComponentBitCount>.+",
         replacement = "\\1",
@@ -221,23 +334,26 @@ cellPixels <- function(input_dir = NULL,
       rm(czi_class)
 
       # Make a 3-D array of the image
-      number_of_channels <- dim(image_loaded)[pos_channels]
-      dim_x <- dim(image_loaded)[pos_x]
-      dim_y <- dim(image_loaded)[pos_y]
 
       if(number_of_channels == 3){
 
         # Delete the dimensions of an array which have only one level
         image_loaded <- drop(image_loaded)
 
-        # Permute dimensions of array
-        pos_x <- pos_x - min(pos_x, pos_y, pos_channels) + 1
-        pos_y <- pos_y - min(pos_x, pos_y, pos_channels) + 1
-        pos_channels <- pos_channels - min(pos_x, pos_y, pos_channels) + 1
+
+        # New position of X,Y,Channels
+        pos_channels <- which(dim(image_loaded) == number_of_channels)
+        pos_x <- which(dim(image_loaded) == dim_x)
+        pos_y <- which(dim(image_loaded) == dim_y)
+
+        ## Permute dimensions of array
+        #pos_x <- pos_x - min(pos_x, pos_y, pos_channels) + 1
+        #pos_y <- pos_y - min(pos_x, pos_y, pos_channels) + 1
+        #pos_channels <- pos_channels - min(pos_x, pos_y, pos_channels) + 1
 
         image_loaded <- aperm(a = image_loaded, c(pos_y, pos_x, pos_channels))
 
-        # Reorder the layers accoring to the colors
+        # Reorder the layers according to the colors
         copy_image_loaded <- image_loaded
 
         image_loaded[,,1] <- copy_image_loaded[,,rgb_layers[1]]
@@ -319,6 +435,9 @@ cellPixels <- function(input_dir = NULL,
     # }
 
 
+    # Number of total pixels
+    number_of_total_pixels <- dim(image_loaded)[1]*dim(image_loaded)[2]
+
     # -------------------------------------------------------------------- #
     # ------------------ Find background intensity ----------------------- #
     # -------------------------------------------------------------------- #
@@ -343,6 +462,9 @@ cellPixels <- function(input_dir = NULL,
     rm(image_dummy)
     rm(mask_foreground_dummy)
 
+    # Number of pixels of the foreground
+    number_of_pixels_foreground <- sum(mask_foreground)
+
     # -------------------------------------------------------------------- #
     # ---------------------- Data manipulation --------------------------- #
     # -------------------------------------------------------------------- #
@@ -354,11 +476,13 @@ cellPixels <- function(input_dir = NULL,
     image_normalized_foreground <- image_normalized
     image_normalized_background <- image_normalized
     image_background <- image_loaded
+    image_foreground <- image_loaded
 
     for(j in 1:number_of_channels){
       image_normalized_foreground[,,j] <- image_normalized[,,j]*mask_foreground
       image_normalized_background[,,j] <- image_normalized[,,j]*(-1*mask_foreground+1)
       image_background[,,j] <- image_loaded[,,j]*(-1*mask_foreground+1)
+      image_foreground[,,j] <- image_loaded[,,j]*(mask_foreground)
     }
     rm(j)
 
@@ -406,6 +530,15 @@ cellPixels <- function(input_dir = NULL,
 
     # Save black-and-white-image as nucleus mask
     nucleus_mask <- nmask
+
+    # Number of pixels of the nucleus mask
+    number_of_pixels_nucleus_region <- sum(nucleus_mask)
+
+    # Number of pixels of the foreground without the nucleus part
+    mask_foreground_wo_nucleus <- mask_foreground - nucleus_mask
+    mask_foreground_wo_nucleus[mask_foreground_wo_nucleus < 0] <- 0
+
+    number_of_pixels_foreground_without_nucleus_region <- sum(mask_foreground_wo_nucleus)
 
     # Label each connected set of pixels with a distinct ID
     nmask <- EBImage::bwlabel(nmask)
@@ -727,10 +860,22 @@ cellPixels <- function(input_dir = NULL,
     df_results[i,"intensity_sum_green_without_nucleus_region"] <- sum(Image_non_nucleus_part[,,2])
     df_results[i,"intensity_sum_blue_without_nucleus_region"] <- sum(Image_non_nucleus_part[,,3])
 
+    df_results[i,"intensity_sum_red_foreground"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground))[,,1])
+    df_results[i,"intensity_sum_green_foreground"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground))[,,2])
+    df_results[i,"intensity_sum_blue_foreground"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground))[,,3])
+
+    df_results[i,"intensity_sum_red_foreground_without_nucleus_region"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground_wo_nucleus))[,,1])
+    df_results[i,"intensity_sum_green_foreground_without_nucleus_region"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground_wo_nucleus))[,,2])
+    df_results[i,"intensity_sum_blue_foreground_without_nucleus_region"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground_wo_nucleus))[,,3])
+
     df_results[i,"intensity_mean_red_background"] <- mean(image_background[,,1])
     df_results[i,"intensity_mean_green_background"] <- mean(image_background[,,2])
     df_results[i,"intensity_mean_blue_background"] <- mean(image_background[,,3])
 
+    df_results[i,"number_of_total_pixels"] <- number_of_total_pixels
+    df_results[i,"number_of_pixels_nucleus_region"] <- number_of_pixels_nucleus_region
+    df_results[i,"number_of_pixels_foreground"] <-  number_of_pixels_foreground
+    df_results[i,"number_of_pixels_foreground_without_nucleus_region"] <- number_of_pixels_foreground_without_nucleus_region
 
     if(image_format == "czi"){
       df_results[i,"exposure_time_channel0"] <- exposure_time[1]
@@ -744,7 +889,7 @@ cellPixels <- function(input_dir = NULL,
       # Get information for adding a scale bar
       length_per_pixel_x <- gsub(
         pattern = paste(".+<Items>[[:space:]]+<Distance Id=\"X\">[[:space:]]+",
-                        "<Value>(.{2,16})</Value>.+",sep=""),
+                        "<Value>(.{2,25})</Value>.+",sep=""),
         replacement = "\\1",
         x = metadata)
       length_per_pixel_x <- tolower(length_per_pixel_x)
@@ -752,7 +897,7 @@ cellPixels <- function(input_dir = NULL,
 
       length_per_pixel_y <- gsub(
         pattern = paste(".+<Items>.+<Distance Id=\"Y\">[[:space:]]+",
-                        "<Value>(.{2,16})</Value>.+",sep=""),
+                        "<Value>(.{2,25})</Value>.+",sep=""),
         replacement = "\\1",
         x = metadata)
       length_per_pixel_y <- tolower(length_per_pixel_y)

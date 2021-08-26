@@ -1,7 +1,7 @@
 # Testscript for using the R package cellPixels for development  +++++++++++
 # Author: Kai Budde
 # Created:
-# Last changed: 2021/01/09
+# Last changed: 2021/08/26
 
 #   Install Package:           'Ctrl + Shift + B'
 #   Check Package:             'Ctrl + Shift + E'
@@ -20,9 +20,10 @@ graphics.off()
 
 # Directory of the images
 #input_dir <- "testleonie/"
-input_dir <- "test4/"
-input_dir <- "E:/bcat/"
-input_dir <- "E:/ROX/"
+#input_dir <- "test4/"
+#input_dir <- "E:/bcat/"
+#input_dir <- "E:/ROX/"
+input_dir <- "E:/Cav/"
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -62,9 +63,18 @@ load_all()
 #                         number_size_factor = 0.2)
 
 #ROX
+# df_results <- cellPixels(input_dir = input_dir,
+#                          nucleus_color = "blue",
+#                          protein_in_nuc_color = "green",
+#                          protein_in_cytosol_color = "red",
+#                          number_size_factor = 0.2)
+
+#Caveolin (Apotome)
 df_results <- cellPixels(input_dir = input_dir,
+                         apotome = TRUE,
+                         apotome_section = FALSE,
                          nucleus_color = "blue",
-                         protein_in_nuc_color = "green",
+                         protein_in_nuc_color = "none",
                          protein_in_cytosol_color = "red",
                          number_size_factor = 0.2)
 
