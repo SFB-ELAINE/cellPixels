@@ -19,7 +19,10 @@ graphics.off()
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 # Directory of the images
-input_dir <- "testleonie/"
+#input_dir <- "testleonie/"
+input_dir <- "test4/"
+input_dir <- "E:/bcat/"
+input_dir <- "E:/ROX/"
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -51,14 +54,28 @@ load_all()
 
 ## FIRST EXAMPLE DIRECTORY -------------------------------------------------
 
+#BCAT
+#df_results <- cellPixels(input_dir = input_dir,
+#                         nucleus_color = "blue",
+#                         protein_in_nuc_color = "red",
+#                         protein_in_cytosol_color = "green",
+#                         number_size_factor = 0.2)
+
+#ROX
 df_results <- cellPixels(input_dir = input_dir,
-                         nucleus_color = "green",
-                         protein_in_nuc_color = "none",
-                         protein_in_cytosol_color = "none",
-                         number_size_factor = 0.2,
-                         thresh_w_h_nuc = 5,
-                         thresh_offset = 0.0001,
-                         blur_sigma = 0,
-                         use_histogram_equalized = TRUE)
+                         nucleus_color = "blue",
+                         protein_in_nuc_color = "green",
+                         protein_in_cytosol_color = "red",
+                         number_size_factor = 0.2)
+
+# df_results <- cellPixels(input_dir = input_dir,
+#                          nucleus_color = "green",
+#                          protein_in_nuc_color = "none",
+#                          protein_in_cytosol_color = "none",
+#                          number_size_factor = 0.2,
+#                          thresh_w_h_nuc = 5,
+#                          thresh_offset = 0.0001,
+#                          blur_sigma = 0,
+#                          use_histogram_equalized = TRUE)
 
 save(df_results, file=paste(input_dir, "output/df_results.Rda", sep=""))

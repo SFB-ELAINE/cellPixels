@@ -122,6 +122,7 @@ cellPixels <- function(input_dir = NULL,
     "intensity_mean_red_background" = rep(NA, number_of_images),
     "intensity_mean_green_background" = rep(NA, number_of_images),
     "intensity_mean_blue_background" = rep(NA, number_of_images),
+    "number_of_pixels_nucleus_region" = rep(NA, number_of_images),
     "exposure_time_channel0" = rep(NA, number_of_images),
     "exposure_time_channel1" = rep(NA, number_of_images),
     "exposure_time_channel2" = rep(NA, number_of_images))
