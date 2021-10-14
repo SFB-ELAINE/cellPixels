@@ -14,6 +14,8 @@
 #' expected in nucleus)
 #' @param protein_in_cytosol_color A character (color (layer) of protein
 #' expected in cytosol)
+#' @param protein_in_membrane_color A character (color (layer) of protein
+#' expected in membrane)
 #' @param number_size_factor A number (factor to resize numbers for
 #' numbering nuclei)
 #' @param bit_depth A number (bit depth of the original czi image)
@@ -25,10 +27,11 @@
 
 cellPixels <- function(input_dir = NULL,
                        apotome = FALSE,
-                       apotome_section = TRUE,
+                       apotome_section = FALSE,
                        nucleus_color = "blue",
                        protein_in_nuc_color = "none",
                        protein_in_cytosol_color = "none",
+                       protein_in_membrane_color = "none",
                        number_size_factor = 0.2,
                        bit_depth = NULL,
                        number_of_pixels_at_border_to_disregard = 3,
@@ -80,11 +83,11 @@ cellPixels <- function(input_dir = NULL,
 
   number_of_images <- length(file_names)
 
-  # Read in Python package for reading czi files
-  # (Users will be asked to install miniconda
-  # when starting for the first time)
-  reticulate::py_install("czifile")
-  zis <- reticulate::import("czifile")
+  # # Read in Python package for reading czi files
+  # # (Users will be asked to install miniconda
+  # # when starting for the first time)
+  # reticulate::py_install("czifile")
+  # zis <- reticulate::import("czifile")
 
   # If there is now image file (czi or tif), close function call
   if(number_of_images == 0){
@@ -136,9 +139,12 @@ cellPixels <- function(input_dir = NULL,
     "number_of_pixels_nucleus_region" = rep(NA, number_of_images),
     "number_of_pixels_foreground" = rep(NA, number_of_images),
     "number_of_pixels_foreground_without_nucleus_region" = rep(NA, number_of_images),
-    "exposure_time_channel0" = rep(NA, number_of_images),
+    "number_of_clusters" = rep(NA, number_of_images),
+    "mean_cluster_size" = rep(NA, number_of_images),
+    "median_cluster_size" = rep(NA, number_of_images),
     "exposure_time_channel1" = rep(NA, number_of_images),
-    "exposure_time_channel2" = rep(NA, number_of_images))
+    "exposure_time_channel2" = rep(NA, number_of_images),
+    "exposure_time_channel3" = rep(NA, number_of_images))
 
   # Reduce the number of pixels for the borders because we will go from
   # 0 to number_of_pixels_at_border_to_disregard-1
@@ -170,22 +176,34 @@ cellPixels <- function(input_dir = NULL,
 
     if(image_format == "czi"){
       # Load image directly from czi and save bit depth of the image
-      image_loaded <- zis$imread(image_path)
+      #image_loaded <- zis$imread(image_path)
+      image_loaded <- readCzi::readCzi(input_file = image_path)
 
-      czi_class <- zis$CziFile(image_path)
-      bit_depth <- czi_class$dtype
-      if(bit_depth == "uint16"){
-        bit_depth <- 16
-      }else if(bit_depth == "uint8"){
-        bit_depth <- 8
-      }else{
-        print(paste("Something went wrong with the bit depth.", sep=""))
-        return()
+      # Read metadata
+      df_metadata <- readCzi::readCziMetadata(input_file = image_path,
+                                              save_metadata = FALSE)
+
+      # Stack image if it contains a zstack
+      if(df_metadata$dim_z > 1){
+        image_loaded <- readCzi::stackLayers(image_data = image_loaded,
+                                             stack_method = "average",
+                                             as_array = TRUE)
       }
+
+      # czi_class <- zis$CziFile(image_path)
+      # bit_depth <- czi_class$dtype
+      # if(bit_depth == "uint16"){
+      #   bit_depth <- 16
+      # }else if(bit_depth == "uint8"){
+      #   bit_depth <- 8
+      # }else{
+      #   print(paste("Something went wrong with the bit depth.", sep=""))
+      #   return()
+      # }
 
       # ComponentBitCount -> shows the number of bits the camera can record
       # (is 0 or not specified if it is the same as dtype)
-      metadata <- czi_class$metadata(czi_class)
+      # metadata <- czi_class$metadata(czi_class)
 
       # Save the dimension information
       # X: Pixel index / offset in the X direction. Used for tiled images.
@@ -207,34 +225,34 @@ cellPixels <- function(input_dir = NULL,
 
       # 0: Data contains uncompressed pixels.
 
-      axes <- czi_class$axes
-      axes <- unlist(strsplit(x = axes, split = ""))
-      pos_channels <- grep(pattern = "C", x = axes)
-      number_of_channels <- dim(image_loaded)[pos_channels]
-      pos_x <- grep(pattern = "X", x = axes)
-      dim_x <- dim(image_loaded)[pos_x]
-      pos_y <- grep(pattern = "Y", x = axes)
-      dim_y <- dim(image_loaded)[pos_y]
-
-      # Check for multiple scenes
-      if("S" %in% axes){
-        pos_scenes <- grep(pattern = "S", x = axes)
-        number_scenes <- dim(image_loaded)[pos_scenes]
-        if(number_scenes > 1){
-          print("More than one scene in image file.")
-        }
-      }
-
-      # Check for phases (with apotome)
-      if("H" %in% axes){
-        pos_phases <- grep(pattern = "H", x = axes)
-        number_phases <- dim(image_loaded)[pos_phases]
-
-        if(!apotome){
-          print("Apotome was used. Parameter is set TRUE.")
-          apotome <- TRUE
-        }
-      }
+      # axes <- czi_class$axes
+      # axes <- unlist(strsplit(x = axes, split = ""))
+      # pos_channels <- grep(pattern = "C", x = axes)
+      # number_of_channels <- dim(image_loaded)[pos_channels]
+      # pos_x <- grep(pattern = "X", x = axes)
+      # dim_x <- dim(image_loaded)[pos_x]
+      # pos_y <- grep(pattern = "Y", x = axes)
+      # dim_y <- dim(image_loaded)[pos_y]
+      #
+      # # Check for multiple scenes
+      # if("S" %in% axes){
+      #   pos_scenes <- grep(pattern = "S", x = axes)
+      #   number_scenes <- dim(image_loaded)[pos_scenes]
+      #   if(number_scenes > 1){
+      #     print("More than one scene in image file.")
+      #   }
+      # }
+      #
+      # # Check for phases (with apotome)
+      # if("H" %in% axes){
+      #   pos_phases <- grep(pattern = "H", x = axes)
+      #   number_phases <- dim(image_loaded)[pos_phases]
+      #
+      #   if(!apotome){
+      #     print("Apotome was used. Parameter is set TRUE.")
+      #     apotome <- TRUE
+      #   }
+      # }
 
       # Work with apotome image ###
       # Reduce apotome layers to one
@@ -242,145 +260,145 @@ cellPixels <- function(input_dir = NULL,
       # ["Structured illumination microscopy: artefact analysis and
       #   reduction utilizing a parameter optimization approach"]
 
-      if(apotome){
-
-        if(apotome_section){
-          image_sectioned <- image_loaded[1,,,,,]
-        }else{
-          image_conventional <- image_loaded[1,,,,,]
-        }
-
-
-        for(chan in 1:number_of_channels){
-
-          cos_term <- 0
-          sin_term <- 0
-          conv_term <- 0
-
-          for(phase in 1:number_phases){
-
-            if(pos_phases == 1 & pos_channels == 3){
-              if(apotome_section){
-                # cos terms
-                cos_term <- cos_term + image_loaded[phase,,chan,,,] *
-                  cos(2*pi*(phase-1)/number_phases)
-
-                # sin terms
-                sin_term <- sin_term + image_loaded[phase,,chan,,,] *
-                  sin(2*pi*(phase-1)/number_phases)
-              }else{
-                # conventional term
-                conv_term <- conv_term + image_loaded[phase,,chan,,,]
-              }
-
-            }else{
-              print("Position of phases not 1.")
-            }
-
-          }
-
-          cos_term <- (2/number_phases) * cos_term
-          sin_term <- (2/number_phases) * sin_term
-          conv_term <- conv_term / number_phases
-
-          if(apotome_section){
-            image_sectioned[chan,,] <- sqrt(cos_term^2+sin_term^2)
-          }else{
-            image_conventional[chan,,] <- conv_term
-          }
-
-        }
-
-        if(apotome_section){
-          image_loaded <- image_sectioned
-        }else{
-          image_loaded <- image_conventional
-        }
-
-      }
+      # if(apotome){
+      #
+      #   if(apotome_section){
+      #     image_sectioned <- image_loaded[1,,,,,]
+      #   }else{
+      #     image_conventional <- image_loaded[1,,,,,]
+      #   }
+      #
+      #
+      #   for(chan in 1:number_of_channels){
+      #
+      #     cos_term <- 0
+      #     sin_term <- 0
+      #     conv_term <- 0
+      #
+      #     for(phase in 1:number_phases){
+      #
+      #       if(pos_phases == 1 & pos_channels == 3){
+      #         if(apotome_section){
+      #           # cos terms
+      #           cos_term <- cos_term + image_loaded[phase,,chan,,,] *
+      #             cos(2*pi*(phase-1)/number_phases)
+      #
+      #           # sin terms
+      #           sin_term <- sin_term + image_loaded[phase,,chan,,,] *
+      #             sin(2*pi*(phase-1)/number_phases)
+      #         }else{
+      #           # conventional term
+      #           conv_term <- conv_term + image_loaded[phase,,chan,,,]
+      #         }
+      #
+      #       }else{
+      #         print("Position of phases not 1.")
+      #       }
+      #
+      #     }
+      #
+      #     cos_term <- (2/number_phases) * cos_term
+      #     sin_term <- (2/number_phases) * sin_term
+      #     conv_term <- conv_term / number_phases
+      #
+      #     if(apotome_section){
+      #       image_sectioned[chan,,] <- sqrt(cos_term^2+sin_term^2)
+      #     }else{
+      #       image_conventional[chan,,] <- conv_term
+      #     }
+      #
+      #   }
+      #
+      #   if(apotome_section){
+      #     image_loaded <- image_sectioned
+      #   }else{
+      #     image_loaded <- image_conventional
+      #   }
+      #
+      # }
 
       # Get bit depth of camera
-      camera_bit_depth <- gsub(
-        pattern = ".+<ComponentBitCount>(.+)</ComponentBitCount>.+",
-        replacement = "\\1",
-        x = metadata)
-      camera_bit_depth <- as.numeric(camera_bit_depth)
-      if(!is.na(camera_bit_depth) && (camera_bit_depth != 0)){
-        bit_depth <- camera_bit_depth
-      }
+      # camera_bit_depth <- gsub(
+      #   pattern = ".+<ComponentBitCount>(.+)</ComponentBitCount>.+",
+      #   replacement = "\\1",
+      #   x = metadata)
+      # camera_bit_depth <- as.numeric(camera_bit_depth)
+      # if(!is.na(camera_bit_depth) && (camera_bit_depth != 0)){
+      #   bit_depth <- camera_bit_depth
+      # }
 
       # Find red, green, and blue channel ID
-      wavelengths <- gsub(
-        pattern =  paste(".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
-                         ".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
-                         ".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
-                         sep=""),
-        replacement = "\\1,\\2,\\3",
-        x = metadata)
-      wavelengths <- as.numeric(strsplit(wavelengths, split = ",")[[1]])
-
-      red_id <- which(wavelengths == max(wavelengths))
-      blue_id <- which(wavelengths == min(wavelengths))
-
-      if(length(wavelengths) == 3){
-        green_id <- c(1:3)[!(c(1:3) %in% red_id | c(1:3) %in% blue_id)]
-      }else{
-        print("There are more or fewer than 3 wavelengths.")
-        return()
-      }
-
-      rgb_layers <- c(red_id, green_id, blue_id)
-
-      rm(czi_class)
+      # wavelengths <- gsub(
+      #   pattern =  paste(".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
+      #                    ".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
+      #                    ".+<EmissionWavelength>(.+)</EmissionWavelength>.+",
+      #                    sep=""),
+      #   replacement = "\\1,\\2,\\3",
+      #   x = metadata)
+      # wavelengths <- as.numeric(strsplit(wavelengths, split = ",")[[1]])
+      #
+      # red_id <- which(wavelengths == max(wavelengths))
+      # blue_id <- which(wavelengths == min(wavelengths))
+      #
+      # if(length(wavelengths) == 3){
+      #   green_id <- c(1:3)[!(c(1:3) %in% red_id | c(1:3) %in% blue_id)]
+      # }else{
+      #   print("There are more or fewer than 3 wavelengths.")
+      #   return()
+      # }
+      #
+      # rgb_layers <- c(red_id, green_id, blue_id)
+      #
+      # rm(czi_class)
 
       # Make a 3-D array of the image
 
-      if(number_of_channels == 3){
+      # if(number_of_channels == 3){
+      #
+      #   # Delete the dimensions of an array which have only one level
+      #   image_loaded <- drop(image_loaded)
+      #
+      #
+      #   # New position of X,Y,Channels
+      #   pos_channels <- which(dim(image_loaded) == number_of_channels)
+      #   pos_x <- which(dim(image_loaded) == dim_x)
+      #   pos_y <- which(dim(image_loaded) == dim_y)
+      #
+      #   ## Permute dimensions of array
+      #   #pos_x <- pos_x - min(pos_x, pos_y, pos_channels) + 1
+      #   #pos_y <- pos_y - min(pos_x, pos_y, pos_channels) + 1
+      #   #pos_channels <- pos_channels - min(pos_x, pos_y, pos_channels) + 1
+      #
+      #   image_loaded <- aperm(a = image_loaded, c(pos_y, pos_x, pos_channels))
+      #
+      #   # Reorder the layers according to the colors
+      #   copy_image_loaded <- image_loaded
+      #
+      #   image_loaded[,,1] <- copy_image_loaded[,,rgb_layers[1]]
+      #   image_loaded[,,2] <- copy_image_loaded[,,rgb_layers[2]]
+      #   image_loaded[,,3] <- copy_image_loaded[,,rgb_layers[3]]
+      #
+      #   rm(copy_image_loaded)
+      #
+      # }else{
+      #   print(paste("We do not have a tif-image with three layers",
+      #               " representing red, green, and blue.", sep=""))
+      #   return()
+      # }
 
-        # Delete the dimensions of an array which have only one level
-        image_loaded <- drop(image_loaded)
-
-
-        # New position of X,Y,Channels
-        pos_channels <- which(dim(image_loaded) == number_of_channels)
-        pos_x <- which(dim(image_loaded) == dim_x)
-        pos_y <- which(dim(image_loaded) == dim_y)
-
-        ## Permute dimensions of array
-        #pos_x <- pos_x - min(pos_x, pos_y, pos_channels) + 1
-        #pos_y <- pos_y - min(pos_x, pos_y, pos_channels) + 1
-        #pos_channels <- pos_channels - min(pos_x, pos_y, pos_channels) + 1
-
-        image_loaded <- aperm(a = image_loaded, c(pos_y, pos_x, pos_channels))
-
-        # Reorder the layers according to the colors
-        copy_image_loaded <- image_loaded
-
-        image_loaded[,,1] <- copy_image_loaded[,,rgb_layers[1]]
-        image_loaded[,,2] <- copy_image_loaded[,,rgb_layers[2]]
-        image_loaded[,,3] <- copy_image_loaded[,,rgb_layers[3]]
-
-        rm(copy_image_loaded)
-
-      }else{
-        print(paste("We do not have a tif-image with three layers",
-                    " representing red, green, and blue.", sep=""))
-        return()
-      }
-
-      image_loaded <- image_loaded/(2^bit_depth-1)
+      # image_loaded <- image_loaded/(2^bit_depth-1)
 
 
       # Get the exposure time for every layer
-      exposure_time <- gsub(
-        pattern =  paste(".+<ExposureTime>(.+)</ExposureTime>.+",
-                         ".+<ExposureTime>(.+)</ExposureTime>.+",
-                         ".+<ExposureTime>(.+)</ExposureTime>.+",
-                         sep=""),
-        replacement = "\\1,\\2,\\3",
-        x = metadata)
-
-      exposure_time <- unlist(strsplit(x = exposure_time, split = ","))
+      # exposure_time <- gsub(
+      #   pattern =  paste(".+<ExposureTime>(.+)</ExposureTime>.+",
+      #                    ".+<ExposureTime>(.+)</ExposureTime>.+",
+      #                    ".+<ExposureTime>(.+)</ExposureTime>.+",
+      #                    sep=""),
+      #   replacement = "\\1,\\2,\\3",
+      #   x = metadata)
+      #
+      # exposure_time <- unlist(strsplit(x = exposure_time, split = ","))
 
     }else if(image_format == "tif"){
       # Load image (hyperstack)
@@ -443,6 +461,7 @@ cellPixels <- function(input_dir = NULL,
     # -------------------------------------------------------------------- #
 
     # Go through every layer and save the foreground as a mask
+    number_of_channels <- df_metadata$number_of_channels[1]
 
     for(j in 1:number_of_channels){
       image_dummy <- image_loaded[,,j]
@@ -470,7 +489,7 @@ cellPixels <- function(input_dir = NULL,
     # -------------------------------------------------------------------- #
 
     # Normalize intensity --------------------------------------------------
-    image_normalized <- normalizeIntensity(image = image_loaded)
+    image_normalized <- readCzi::normalizeIntensity(image = image_loaded)
 
     # Get Background of normalized image and loaded image
     image_normalized_foreground <- image_normalized
@@ -493,18 +512,29 @@ cellPixels <- function(input_dir = NULL,
 
     # Save only color layer of nuclei
     if(use_histogram_equalized){
-      image_nuclei <- getLayer(image = image_histogram_equalization, layer = nucleus_color)
+        image_nuclei <- getLayer(image = image_histogram_equalization, layer = nucleus_color)
     }else{
-      image_nuclei <- getLayer(image = image_loaded, layer = nucleus_color)
+        image_nuclei <- getLayer(image = image_loaded, layer = nucleus_color)
+    }
+
+    # Brighten nuclei image for apotome section image
+    if(apotome_section){
+      image_nuclei <- image_nuclei/max(image_nuclei)
     }
 
     Image_nuclei <- EBImage::Image(image_nuclei)
     rm(image_nuclei)
     #display(Image_nuclei)
 
+
+
     # Blur the image
     if(is.null(blur_sigma)){
-      Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 7)
+      if(apotome_section){
+        Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 14)
+      }else{
+        Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 7)
+      }
     }else if(blur_sigma > 0){
       Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = blur_sigma)
     }
@@ -516,11 +546,13 @@ cellPixels <- function(input_dir = NULL,
         # Smaller moving rectangle if the magnification is 20x (instead of 40x)
         nmask <- EBImage::thresh(Image_nuclei, w=15, h=15, offset=0.01)
       }else{
-        nmask <- EBImage::thresh(Image_nuclei, w=35, h=35, offset=0.01)
+        # Magnification of 40x
+        nmask <- EBImage::thresh(Image_nuclei, w=30, h=30, offset=0.01)
       }
     }else{
       nmask <- EBImage::thresh(Image_nuclei, w=thresh_w_h_nuc, h=thresh_w_h_nuc, offset=thresh_offset)
     }
+    #display(nmask)
 
 
     # Morphological opening to remove objects smaller than the structuring element
@@ -602,7 +634,7 @@ cellPixels <- function(input_dir = NULL,
 
     # Watershed in order to distinct nuclei that are too close to each other
     nmask_watershed <-  EBImage::watershed(
-      EBImage::distmap(nmask), tolerance = 0.5, ext = 1)
+      EBImage::distmap(nmask), tolerance = 0.4, ext = 2)
     #display(colorLabels(nmask_watershed), all=TRUE)
 
     # Count number of cells
@@ -610,7 +642,7 @@ cellPixels <- function(input_dir = NULL,
 
     # Include numbers of nuclei
     Image_nuclei <- image_loaded
-    Image_nuclei_numbers <- image_loaded
+    Image_nuclei_numbers <- as.array(image_loaded)
 
     table_nmask_watershed <- table(nmask_watershed)
 
@@ -747,12 +779,22 @@ cellPixels <- function(input_dir = NULL,
       image_protein_in_cytosol <- getLayer(
         image = image_loaded, layer = protein_in_cytosol_color)
 
+      # Brighten cytosol image for apotome section image
+      if(apotome_section){
+        image_protein_in_cytosol <- image_protein_in_cytosol/max(image_protein_in_cytosol)
+      }
+
       Image_protein_in_cytosol <- EBImage::Image(image_protein_in_cytosol)
       rm(image_protein_in_cytosol)
       #display(Image_protein_in_cytosol)
 
       # Blur the image
-      Image_protein_in_cytosol <- EBImage::gblur(Image_protein_in_cytosol, sigma = 5)
+      if(apotome_section){
+        Image_protein_in_cytosol <- EBImage::gblur(Image_protein_in_cytosol, sigma = 10)
+      }else{
+        Image_protein_in_cytosol <- EBImage::gblur(Image_protein_in_cytosol, sigma = 5)
+      }
+
       #display(Image_protein_in_nuc)
 
       # Mask the proteins within the cytosol
@@ -827,6 +869,149 @@ cellPixels <- function(input_dir = NULL,
 
     }
 
+    # Detect clusters of membrane ligands  ---------------------------------
+
+    if(protein_in_membrane_color != "none" & apotome_section){
+
+      # Save only color layer membrane ligands
+      if(use_histogram_equalized){
+        image_membrane_ligands <- getLayer(image = image_histogram_equalization, layer = protein_in_membrane_color)
+      }else{
+        image_membrane_ligands <- getLayer(image = image_loaded, layer = protein_in_membrane_color)
+      }
+
+      # Normalize membrane ligands image
+      image_membrane_ligands <- image_membrane_ligands/max(image_membrane_ligands)
+
+      Image_membrane_ligands <- EBImage::Image(image_membrane_ligands)
+      rm(image_membrane_ligands)
+      #display(Image_membrane_ligands)
+
+
+
+      # # Blur the image
+      # if(is.null(blur_sigma)){
+      #   if(apotome_section){
+      #     Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 14)
+      #   }else{
+      #     Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 7)
+      #   }
+      # }else if(blur_sigma > 0){
+      #   Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = blur_sigma)
+      # }
+
+
+      # Mask the clusters
+      if(grepl(pattern = "_63x_", file_names[i])){
+        cmask <- EBImage::thresh(Image_membrane_ligands, w=500, h=500, offset=0.19)
+      }else{
+        print("magnification of objective other than 63x used")
+        cmask <- EBImage::thresh(Image_membrane_ligands, w=10, h=10, offset=0.3)
+      }
+
+      #display(cmask)
+
+      # Fill holes
+      cmask <- EBImage::fillHull(cmask)
+
+      # Save black-and-white-image as cluster mask
+      cluster_mask <- cmask
+#
+#       # Number of pixels of the nucleus mask
+#       number_of_pixels_nucleus_region <- sum(nucleus_mask)
+#
+#       # Number of pixels of the foreground without the nucleus part
+#       mask_foreground_wo_nucleus <- mask_foreground - nucleus_mask
+#       mask_foreground_wo_nucleus[mask_foreground_wo_nucleus < 0] <- 0
+#
+#       number_of_pixels_foreground_without_nucleus_region <- sum(mask_foreground_wo_nucleus)
+
+      # Label each connected set of pixels with a distinct ID
+      cmask <- EBImage::bwlabel(cmask)
+
+      #display(cmask)
+
+      # # Record all nuclei that are at the edges of the image
+      # left  <- table(nmask[1:number_of_pixels_at_border_to_disregard,
+      #                      1:dim(nmask)[2]])
+      # top   <- table(nmask[1:dim(nmask)[1],
+      #                      1:number_of_pixels_at_border_to_disregard])
+      # right <- table(nmask[
+      #   (dim(nmask)[1]-number_of_pixels_at_border_to_disregard):dim(nmask)[1],
+      #   1:dim(nmask)[2]])
+      # bottom <- table(nmask[
+      #   1:dim(nmask)[1],
+      #   (dim(nmask)[2]-number_of_pixels_at_border_to_disregard):dim(nmask)[2]])
+      #
+      #
+      # left <- as.integer(names(left))
+      # top <- as.integer(names(top))
+      # right <- as.integer(names(right))
+      # bottom <- as.integer(names(bottom))
+      #
+      # nuclei_at_borders <- unique(c(left, top, right, bottom))
+      #
+      # # delete the 0 in the list (these are pixels that do not belong to a nucleus)
+      # nuclei_at_borders <- nuclei_at_borders[nuclei_at_borders != 0]
+      #
+      # # Delete all nuclei at border
+      # if(length(nuclei_at_borders) > 0){
+      #   for(j in 1:length(nuclei_at_borders)){
+      #     EBImage::imageData(nmask)[
+      #       EBImage::imageData(nmask) == nuclei_at_borders[j]] <- 0
+      #   }
+      #   rm(j)
+      # }
+
+      #display(nmask)
+
+      # Delete all remaining nuclei that are smaller than 5% of the median size
+      # object sizes
+      # barplot(table(nmask)[-1])
+
+      # table_nmask <- table(nmask)
+      # nuc_min_size <- 0.1*stats::median(table_nmask[-1])
+      #
+      # # remove objects that are smaller than min_nuc_size
+      # to_be_removed <- as.integer(names(which(table_nmask < nuc_min_size)))
+      # if(length(to_be_removed) > 0){
+      #   for(j in 1:length(to_be_removed)){
+      #     EBImage::imageData(nmask)[
+      #       EBImage::imageData(nmask) == to_be_removed[j]] <- 0
+      #   }
+      #   rm(j)
+      # }
+      #
+      # # Recount nuclei
+      # nmask <- EBImage::bwlabel(nmask)
+      # #display(nmask)
+
+      # Watershed in order to distinct clusters that are too close to each other
+      cmask_watershed <-  EBImage::watershed(
+        EBImage::distmap(cmask), tolerance = 0.1, ext = 1)
+      #display(colorLabels(cmask_watershed), all=TRUE)
+
+      # Count number of cluster
+      clustersNo <- max(cmask_watershed)
+
+      # Mean size of clusters
+      cluster_sizes <- as.vector(table(cmask)[-1])
+      mean_cluster_size <- mean(cluster_sizes)
+      median_cluster_size <- median(cluster_sizes)
+
+      # TODO: save image with and without the cluster mask
+
+      # Use the cluster mask to leave only the clusters part of the images
+      Image_clusters_part <- EBImage::Image(image_normalized) * EBImage::toRGB(cluster_mask)
+
+      # Use the nucleus mask to cut out nuclei of the images
+      cluster_mask <- 1-cluster_mask
+      Image_non_clusters_part <- EBImage::Image(image_normalized) * EBImage::toRGB(cluster_mask)
+
+    }else{
+      clustersNo <- 0
+    }
+
 
 
     # -------------------------------------------------------------------- #
@@ -877,40 +1062,47 @@ cellPixels <- function(input_dir = NULL,
     df_results[i,"number_of_pixels_foreground"] <-  number_of_pixels_foreground
     df_results[i,"number_of_pixels_foreground_without_nucleus_region"] <- number_of_pixels_foreground_without_nucleus_region
 
+    df_results[i, "number_of_clusters"] <- clustersNo
+    df_results[i, "mean_cluster_size"] <- mean_cluster_size
+    df_results[i, "median_cluster_size"] <- median_cluster_size
+
+
     if(image_format == "czi"){
-      df_results[i,"exposure_time_channel0"] <- exposure_time[1]
-      df_results[i,"exposure_time_channel1"] <- exposure_time[2]
-      df_results[i,"exposure_time_channel2"] <- exposure_time[3]
+      df_results[i,"exposure_time_channel1"] <- df_metadata$laser_scan_pixel_time_1[1]
+      df_results[i,"exposure_time_channel2"] <- df_metadata$laser_scan_pixel_time_1[2]
+      df_results[i,"exposure_time_channel3"] <- df_metadata$laser_scan_pixel_time_1[3]
     }
 
     # Save all images ------------------------------------------------------
 
     if(image_format == "czi"){
       # Get information for adding a scale bar
-      length_per_pixel_x <- gsub(
-        pattern = paste(".+<Items>[[:space:]]+<Distance Id=\"X\">[[:space:]]+",
-                        "<Value>(.{2,25})</Value>.+",sep=""),
-        replacement = "\\1",
-        x = metadata)
-      length_per_pixel_x <- tolower(length_per_pixel_x)
-      length_per_pixel_x <- as.numeric(length_per_pixel_x)
+      # length_per_pixel_x <- gsub(
+      #   pattern = paste(".+<Items>[[:space:]]+<Distance Id=\"X\">[[:space:]]+",
+      #                   "<Value>(.{2,25})</Value>.+",sep=""),
+      #   replacement = "\\1",
+      #   x = metadata)
+      # length_per_pixel_x <- tolower(length_per_pixel_x)
+      # length_per_pixel_x <- as.numeric(length_per_pixel_x)
+      length_per_pixel_x <- df_metadata$scaling_x[1]
 
-      length_per_pixel_y <- gsub(
-        pattern = paste(".+<Items>.+<Distance Id=\"Y\">[[:space:]]+",
-                        "<Value>(.{2,25})</Value>.+",sep=""),
-        replacement = "\\1",
-        x = metadata)
-      length_per_pixel_y <- tolower(length_per_pixel_y)
-      length_per_pixel_y <- as.numeric(length_per_pixel_y)
+      # length_per_pixel_y <- gsub(
+      #   pattern = paste(".+<Items>.+<Distance Id=\"Y\">[[:space:]]+",
+      #                   "<Value>(.{2,25})</Value>.+",sep=""),
+      #   replacement = "\\1",
+      #   x = metadata)
+      # length_per_pixel_y <- tolower(length_per_pixel_y)
+      # length_per_pixel_y <- as.numeric(length_per_pixel_y)
+      length_per_pixel_y <- df_metadata$scaling_y[1]
 
       if(length_per_pixel_x != length_per_pixel_y){
         print("Dimension in x- and y-directions are different! ERROR!")
       }
 
-      # Save metadata in txt file
-      utils::write.table(metadata, file = paste(output_dir,image_name_wo_czi,
-                                                "_metadata.txt", sep = ""),
-                         sep = "", row.names = FALSE, col.names = FALSE, quote = FALSE)
+      # # Save metadata in txt file
+      # utils::write.table(metadata, file = paste(output_dir,image_name_wo_czi,
+      #                                           "_metadata.txt", sep = ""),
+      #                    sep = "", row.names = FALSE, col.names = FALSE, quote = FALSE)
 
 
       # Original image (converted to tif)
@@ -1040,17 +1232,43 @@ cellPixels <- function(input_dir = NULL,
                     bits.per.sample = 8L, compression = "none",
                     reduce = TRUE)
 
+    # Normalized images with left out clusters and only with positions of clusters
+    if(add_scale_bar){
+      Image_clusters_part <- addScaleBar(
+        image = Image_clusters_part,
+        length_per_pixel = length_per_pixel_x)
+      Image_non_clusters_part <- addScaleBar(
+        image = Image_non_clusters_part,
+        length_per_pixel = length_per_pixel_x)
+    }
+    tiff::writeTIFF(what = Image_clusters_part,
+                    where = paste(output_dir,
+                                  image_name_wo_czi,
+                                  "_normalized_clusters_part.tif",
+                                  sep = ""),
+                    bits.per.sample = 8L, compression = "none",
+                    reduce = TRUE)
+
+    tiff::writeTIFF(what = Image_non_clusters_part,
+                    where = paste(output_dir,
+                                  image_name_wo_czi,
+                                  "_normalized_clusters_left_out.tif",
+                                  sep = ""),
+                    bits.per.sample = 8L, compression = "none",
+                    reduce = TRUE)
+
     # Remove all variables but the ones used before the for loop
 
     list_of_variables <- ls()
     keep_variables <- c("df_results", "zis",
                         "bit_depth", "file_names", "image_format",
-                        "input_dir",
+                        "input_dir", "apotome", "apotome_section",
                         "nucleus_color","number_of_images",
                         "number_of_pixels_at_border_to_disregard",
                         "number_size_factor", "output_dir",
                         "protein_in_cytosol_color",
                         "protein_in_nuc_color",
+                        "protein_in_membrane_color",
                         "add_scale_bar", "thresh_w_h_nuc",
                         "thresh_offset", "blur_sigma",
                         "use_histogram_equalized",
@@ -1064,13 +1282,14 @@ cellPixels <- function(input_dir = NULL,
 
 
   } # end of the routine for every image in the directory
+  rm(i)
 
   if(!is.null(df_results)){
     utils::write.csv(df_results,
-                     file = paste(output_dir, "intensity_summary.csv", sep=""), row.names = FALSE)
+                     file = paste(output_dir, "image_analysis_summary.csv", sep=""), row.names = FALSE)
 
     utils::write.csv2(df_results,
-                      file = paste(output_dir, "intensity_summary_de.csv", sep=""), row.names = FALSE)
+                      file = paste(output_dir, "image_analysis_summary_de.csv", sep=""), row.names = FALSE)
   }
 
   return(df_results)

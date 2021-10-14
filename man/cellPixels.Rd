@@ -8,9 +8,12 @@
 \usage{
 cellPixels(
   input_dir = NULL,
+  apotome = FALSE,
+  apotome_section = FALSE,
   nucleus_color = "blue",
   protein_in_nuc_color = "none",
   protein_in_cytosol_color = "none",
+  protein_in_membrane_color = "none",
   number_size_factor = 0.2,
   bit_depth = NULL,
   number_of_pixels_at_border_to_disregard = 3,
@@ -24,6 +27,10 @@ cellPixels(
 \arguments{
 \item{input_dir}{A character (directory that contains all images)}
 
+\item{apotome}{A boolean (TRUE if Apotome was used)}
+
+\item{apotome_section}{A boolean (TRUE is sectioned image shall be used)}
+
 \item{nucleus_color}{A character (color (layer) of nuclei)}
 
 \item{protein_in_nuc_color}{A character (color (layer) of protein
@@ -31,6 +38,9 @@ expected in nucleus)}
 
 \item{protein_in_cytosol_color}{A character (color (layer) of protein
 expected in cytosol)}
+
+\item{protein_in_membrane_color}{A character (color (layer) of protein
+expected in membrane)}
 
 \item{number_size_factor}{A number (factor to resize numbers for
 numbering nuclei)}
