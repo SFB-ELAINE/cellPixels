@@ -49,10 +49,8 @@ require(devtools)
 require(reticulate)
 
 
-# Install readCzi if not already installed (checked with v0.1.8)
-if(!"readCzi" %in% installed.packages()[,"Package"]){
-  devtools::install_github(repo = "https://github.com/SFB-ELAINE/readCzi")
-}
+# Install readCzi if not already installed (checked with v0.1.9)
+devtools::install_github(repo = "https://github.com/SFB-ELAINE/readCzi")
 
 require(readCzi)
 
@@ -60,7 +58,7 @@ require(readCzi)
 #check()
 
 # Document package
-#document()
+document()
 
 # Load package to use it
 load_all()

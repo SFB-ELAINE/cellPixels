@@ -14,14 +14,9 @@ addScaleBar <- function(image = NULL,
                         distance_from_border = 20,
                         number_size_factor = 1){
 
-
-  # dim_x <- dim(image)[2]
-  # dim_y <- dim(image)[1]
-  # dim_z <- dim(image)[3]
-  dim_x <- dim(image)[1]
-  dim_y <- dim(image)[2]
+  dim_x <- dim(image)[2]
+  dim_y <- dim(image)[1]
   dim_z <- dim(image)[3]
-
 
   dim_x_microns <- dim_x * length_per_pixel * 1e6
   length_scale_bar_microns <- round(dim_x_microns / 10)
@@ -47,25 +42,20 @@ addScaleBar <- function(image = NULL,
   heigth_scale_bar_pixels <- as.integer(round(dim_y/150))
 
   # Add the scale_bar
-  # image[(dim_y-distance_from_border-heigth_scale_bar_pixels):(dim_y-distance_from_border),
-  #       (dim_x-distance_from_border-length_scale_bar_pixels):(dim_x-distance_from_border),
-  #       1:dim_z] <- 1
-  image[(dim_x-distance_from_border-length_scale_bar_pixels):(dim_x-distance_from_border),
-        (dim_y-distance_from_border-heigth_scale_bar_pixels):(dim_y-distance_from_border),
+  image[(dim_y-distance_from_border-heigth_scale_bar_pixels):(dim_y-distance_from_border),
+        (dim_x-distance_from_border-length_scale_bar_pixels):(dim_x-distance_from_border),
         1:dim_z] <- 1
 
   # Add length and unit
-  # number_pos_x <- dim_y-distance_from_border-heigth_scale_bar_pixels
-  # number_pos_y <- dim_x-distance_from_border-0.5*length_scale_bar_pixels
-  number_pos_x <- dim_x-distance_from_border-0.5*length_scale_bar_pixels
-  number_pos_y <- dim_y-distance_from_border-heigth_scale_bar_pixels
+  number_pos_x <- dim_y-distance_from_border-heigth_scale_bar_pixels
+  number_pos_y <- dim_x-distance_from_border-0.5*length_scale_bar_pixels
 
   # Get the file names with the text
   scale_legend_path <- paste(length_scale_bar_microns, "microns.tif", sep="")
   scale_legend_path <- system.file("scale", scale_legend_path, package = "cellPixels")
 
   scale_legend_image <- tiff::readTIFF(source = scale_legend_path, convert = TRUE,
-                                info = FALSE)
+                                       info = FALSE)
   # Only keep the black layer
   scale_legend_image <- scale_legend_image[,,4]
 
@@ -76,27 +66,18 @@ addScaleBar <- function(image = NULL,
 
   dim_legend_x <- dim(scale_legend_image)[2]
   dim_legend_y <- dim(scale_legend_image)[1]
-  # dim_legend_x <- dim(scale_legend_image)[1]
-  # dim_legend_y <- dim(scale_legend_image)[2]
 
-  # Add number images to image
+  # Add image to image
   start_x <- dim_x-distance_from_border-0.5*length_scale_bar_pixels-0.5*dim_legend_x
   start_y <- dim_y-distance_from_border-heigth_scale_bar_pixels-1.1*dim_legend_y
-  # start_x <- dim_x-distance_from_border-0.5*length_scale_bar_pixels-0.5*dim_legend_x
-  # start_y <- dim_y-distance_from_border-heigth_scale_bar_pixels-1.1*dim_legend_y
 
-  # for(row in 1:dim_legend_y){
-  #   for(col in 1:dim_legend_x){
-  for(col in 1:dim_legend_x){
-    for(row in 1:dim_legend_y){
+  for(row in 1:dim_legend_y){
+    for(col in 1:dim_legend_x){
       if(scale_legend_image[row, col] > 0){
-      # if(scale_legend_image[col, row] > 0){
-        # image[start_y+row, start_x+col, 1:dim_z] <- scale_legend_image[row, col]
-        image[start_x+col, start_y+row, 1:dim_z] <- scale_legend_image[row, col]
+        image[start_y+row, start_x+col, 1:dim_z] <- scale_legend_image[row, col]
       }
     }
   }
 
   return(image)
-
 }

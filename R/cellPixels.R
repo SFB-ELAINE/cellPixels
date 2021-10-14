@@ -1010,6 +1010,8 @@ cellPixels <- function(input_dir = NULL,
 
     }else{
       clustersNo <- 0
+      mean_cluster_size <- NA
+      median_cluster_size <- NA
     }
 
 
@@ -1233,29 +1235,32 @@ cellPixels <- function(input_dir = NULL,
                     reduce = TRUE)
 
     # Normalized images with left out clusters and only with positions of clusters
-    if(add_scale_bar){
-      Image_clusters_part <- addScaleBar(
-        image = Image_clusters_part,
-        length_per_pixel = length_per_pixel_x)
-      Image_non_clusters_part <- addScaleBar(
-        image = Image_non_clusters_part,
-        length_per_pixel = length_per_pixel_x)
-    }
-    tiff::writeTIFF(what = Image_clusters_part,
-                    where = paste(output_dir,
-                                  image_name_wo_czi,
-                                  "_normalized_clusters_part.tif",
-                                  sep = ""),
-                    bits.per.sample = 8L, compression = "none",
-                    reduce = TRUE)
+    if(protein_in_membrane_color != "none" & apotome_section){
+      if(add_scale_bar){
+        Image_clusters_part <- addScaleBar(
+          image = Image_clusters_part,
+          length_per_pixel = length_per_pixel_x)
+        Image_non_clusters_part <- addScaleBar(
+          image = Image_non_clusters_part,
+          length_per_pixel = length_per_pixel_x)
+      }
+      tiff::writeTIFF(what = Image_clusters_part,
+                      where = paste(output_dir,
+                                    image_name_wo_czi,
+                                    "_normalized_clusters_part.tif",
+                                    sep = ""),
+                      bits.per.sample = 8L, compression = "none",
+                      reduce = TRUE)
 
-    tiff::writeTIFF(what = Image_non_clusters_part,
-                    where = paste(output_dir,
-                                  image_name_wo_czi,
-                                  "_normalized_clusters_left_out.tif",
-                                  sep = ""),
-                    bits.per.sample = 8L, compression = "none",
-                    reduce = TRUE)
+      tiff::writeTIFF(what = Image_non_clusters_part,
+                      where = paste(output_dir,
+                                    image_name_wo_czi,
+                                    "_normalized_clusters_left_out.tif",
+                                    sep = ""),
+                      bits.per.sample = 8L, compression = "none",
+                      reduce = TRUE)
+    }
+
 
     # Remove all variables but the ones used before the for loop
 
