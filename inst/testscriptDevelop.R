@@ -25,6 +25,7 @@ graphics.off()
 #input_dir <- "E:/ROX/"
 #input_dir <- "E:/Cav/"
 input_dir <- "E:/LSM/"
+input_dir <- "E:/test/"
 #input_dir <- "testapotome/"
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

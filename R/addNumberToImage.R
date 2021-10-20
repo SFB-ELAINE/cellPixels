@@ -50,8 +50,9 @@ addNumberToImage <- function(image = NULL,
     digit_path <- paste(digit, ".tiff", sep="")
     digit_path <- system.file("digits", digit_path, package = "cellPixels")
 
-    digit_image <- tiff::readTIFF(source = digit_path, convert = TRUE,
-                            info = FALSE)
+    # digit_image2 <- tiff::readTIFF(source = digit_path, convert = TRUE,
+    #                         info = FALSE)
+    digit_image <- EBImage::readImage(files = digit_path,type = "tiff")
 
     # Only keep the black layer
     digit_image <- digit_image[,,4]
@@ -80,8 +81,10 @@ addNumberToImage <- function(image = NULL,
     digit_images[[i]] <- digit_image
 
     # Save dimensions of all digits
-    digits_size_x <- max(digits_size_x, dim(digit_image)[1])
-    digits_size_y <- digits_size_y + dim(digit_image)[2]
+    # digits_size_x <- max(digits_size_x, dim(digit_image)[1])
+    # digits_size_y <- digits_size_y + dim(digit_image)[2]
+    digits_size_x <- digits_size_x + dim(digit_image)[1]
+    digits_size_y <- max(digits_size_y, dim(digit_image)[2])
   }
 
   # Choose layer of image where the number should be added to
@@ -101,13 +104,19 @@ addNumberToImage <- function(image = NULL,
   # Adapt the starting position so the digits will be completely seen ---
 
   # Right side
-  if( (pos_y + digits_size_y) > dim(image_with_numbers)[2] ){
-    pos_y <- dim(image_with_numbers)[2] - digits_size_y
+  # if( (pos_y + digits_size_y) > dim(image_with_numbers)[2] ){
+  #   pos_y <- dim(image_with_numbers)[2] - digits_size_y
+  # }
+  if( (pos_x + digits_size_x) >= dim(image_with_numbers)[1]){
+    pos_x <- dim(image_with_numbers)[1] - digits_size_x
   }
 
   # Lower side
-  if( (pos_x + digits_size_x) > dim(image_with_numbers)[1]){
-    pos_x <- dim(image_with_numbers)[1] - digits_size_x
+  # if( (pos_x + digits_size_x) > dim(image_with_numbers)[1]){
+  #   pos_x <- dim(image_with_numbers)[1] - digits_size_x
+  # }
+  if( (pos_y + digits_size_y) >= dim(image_with_numbers)[2] ){
+    pos_y <- dim(image_with_numbers)[2] - digits_size_y
   }
 
 
@@ -117,16 +126,24 @@ addNumberToImage <- function(image = NULL,
     digit_image_size_y <- dim(digit_images[[i]])[2]
 
 
-    for(row in 1:digit_image_size_x){
-      for(col in 1:digit_image_size_y){
-        image_with_numbers[pos_x + row, pos_y + col, image_layer] <-
-          min(digit_images[[i]][row, col] +
-                image_with_numbers[pos_x + row, pos_y + col, image_layer], 1)
+    # for(row in 1:digit_image_size_x){
+    #   for(col in 1:digit_image_size_y){
+    #     image_with_numbers[pos_x + row, pos_y + col, image_layer] <-
+    #       min(digit_images[[i]][row, col] +
+    #             image_with_numbers[pos_x + row, pos_y + col, image_layer], 1)
+    #   }
+    # }
+    for(col in 1:digit_image_size_x){
+      for(row in 1:digit_image_size_y){
+        image_with_numbers[pos_x + col, pos_y + row, image_layer] <-
+          min(digit_images[[i]][col, row] +
+                image_with_numbers[pos_x + col, pos_y + row, image_layer], 1)
       }
     }
 
     # Adapt starting position for the next digit
-    pos_y <- pos_y + digit_image_size_y
+    #pos_y <- pos_y + digit_image_size_y
+    pos_x <- pos_x + digit_image_size_x
   }
 
   return(image_with_numbers)

@@ -142,9 +142,9 @@ cellPixels <- function(input_dir = NULL,
     "number_of_clusters" = rep(NA, number_of_images),
     "mean_cluster_size" = rep(NA, number_of_images),
     "median_cluster_size" = rep(NA, number_of_images),
-    "exposure_time_channel1" = rep(NA, number_of_images),
-    "exposure_time_channel2" = rep(NA, number_of_images),
-    "exposure_time_channel3" = rep(NA, number_of_images))
+    "exposure_or_laser_scan_pixel_time_channel_1" = rep(NA, number_of_images),
+    "exposure_or_laser_scan_pixel_time_channel_2" = rep(NA, number_of_images),
+    "exposure_or_laser_scan_pixel_time_channel_3" = rep(NA, number_of_images))
 
   # Reduce the number of pixels for the borders because we will go from
   # 0 to number_of_pixels_at_border_to_disregard-1
@@ -175,7 +175,7 @@ cellPixels <- function(input_dir = NULL,
     # Load image (and metainformation if available)
 
     if(image_format == "czi"){
-      # Load image directly from czi and save bit depth of the image
+      # Load image directly from czi (as EBImage)
       #image_loaded <- zis$imread(image_path)
       image_loaded <- readCzi::readCzi(input_file = image_path)
 
@@ -188,6 +188,16 @@ cellPixels <- function(input_dir = NULL,
         image_loaded <- readCzi::stackLayers(image_data = image_loaded,
                                              stack_method = "average",
                                              as_array = TRUE)
+      }else{
+
+        if(dim(image_loaded)[4] != df_metadata$dim_z){
+          print("Something went wrong with the z-dimension.")
+          return()
+        }
+
+        # Drop z-layer of multidimensional array if dim_z == 1
+
+        image_loaded <- drop(image_loaded)
       }
 
       # czi_class <- zis$CziFile(image_path)
@@ -512,9 +522,9 @@ cellPixels <- function(input_dir = NULL,
 
     # Save only color layer of nuclei
     if(use_histogram_equalized){
-        image_nuclei <- getLayer(image = image_histogram_equalization, layer = nucleus_color)
+      image_nuclei <- getLayer(image = image_histogram_equalization, layer = nucleus_color)
     }else{
-        image_nuclei <- getLayer(image = image_loaded, layer = nucleus_color)
+      image_nuclei <- getLayer(image = image_loaded, layer = nucleus_color)
     }
 
     # Brighten nuclei image for apotome section image
@@ -646,42 +656,95 @@ cellPixels <- function(input_dir = NULL,
 
     table_nmask_watershed <- table(nmask_watershed)
 
+    # Sort the nuclei from top to bottom and left to right
     if(length(table_nmask_watershed[-1]) > 0){
-      # remove 0
-      nuc_numbers <- as.integer(names(table_nmask_watershed[-1]))
+      df_nmask_watershed <- data.frame(table(nmask_watershed))
 
-      for(j in 1:length(nuc_numbers)){
+      names(df_nmask_watershed)[names(df_nmask_watershed) == "nmask_watershed"] <- "NucNo"
+      df_nmask_watershed <- df_nmask_watershed[!df_nmask_watershed$NucNo == 0,]
+
+      df_nmask_watershed$x_coord <- NA
+      df_nmask_watershed$y_coord <- NA
+      for(j in 1:nrow(df_nmask_watershed)){
 
         # Find approximate midpoint of every nucleus
         dummy_coordinates <- which(
           EBImage::imageData(nmask_watershed) ==
-            nuc_numbers[j], arr.ind = TRUE)
+            j, arr.ind = TRUE)
 
 
         pos_x <- round(mean(dummy_coordinates[,1]))
         pos_y <- round(mean(dummy_coordinates[,2]))
 
+
+        df_nmask_watershed$x_coord[j] <- pos_x
+        df_nmask_watershed$y_coord[j] <- pos_y
+
+      }
+      rm(j)
+
+      df_nmask_watershed <- df_nmask_watershed[order(df_nmask_watershed$y_coord, df_nmask_watershed$x_coord),]
+      rownames(df_nmask_watershed) <- NULL
+      df_nmask_watershed$newNucNo <- 1:nrow(df_nmask_watershed)
+
+      for(j in 1:nrow(df_nmask_watershed)){
+
         Image_nuclei_numbers <- addNumberToImage(
           image = Image_nuclei_numbers,
-          number = j,
-          pos_x = pos_x,
-          pos_y = pos_y,
+          number = df_nmask_watershed$newNucNo[j],
+          pos_x = df_nmask_watershed$x_coord[j],
+          pos_y = df_nmask_watershed$y_coord[j],
           number_size_factor = number_size_factor,
           number_color = "green")
         Image_nuclei_numbers <- addNumberToImage(
           image = Image_nuclei_numbers,
-          number = j,
-          pos_x = pos_x,
-          pos_y = pos_y,
+          number = df_nmask_watershed$newNucNo[j],
+          pos_x = df_nmask_watershed$x_coord[j],
+          pos_y = df_nmask_watershed$y_coord[j],
           number_size_factor = number_size_factor,
           number_color = "blue")
       }
       rm(j)
+
     }
 
+
+    # if(length(table_nmask_watershed[-1]) > 0){
+    #   # remove 0
+    #   nuc_numbers <- as.integer(names(table_nmask_watershed[-1]))
+
+    # for(j in 1:length(nuc_numbers)){
+    #
+    #   # Find approximate midpoint of every nucleus
+    #   dummy_coordinates <- which(
+    #     EBImage::imageData(nmask_watershed) ==
+    #       nuc_numbers[j], arr.ind = TRUE)
+    #
+    #
+    #   pos_x <- round(mean(dummy_coordinates[,1]))
+    #   pos_y <- round(mean(dummy_coordinates[,2]))
+    #
+    #   Image_nuclei_numbers <- addNumberToImage(
+    #     image = Image_nuclei_numbers,
+    #     number = j,
+    #     pos_x = pos_x,
+    #     pos_y = pos_y,
+    #     number_size_factor = number_size_factor,
+    #     number_color = "green")
+    #   Image_nuclei_numbers <- addNumberToImage(
+    #     image = Image_nuclei_numbers,
+    #     number = j,
+    #     pos_x = pos_x,
+    #     pos_y = pos_y,
+    #     number_size_factor = number_size_factor,
+    #     number_color = "blue")
+    # }
+    # rm(j)
+    # }
+
     # Add border of nuclei and save file
-    Image_nuclei <- EBImage::Image(Image_nuclei)
-    EBImage::colorMode(Image_nuclei) <- "color"
+    Image_nuclei <- EBImage::Image(Image_nuclei, colormode = "color")
+    # EBImage::colorMode(Image_nuclei) <- "color"
 
     Image_nuclei <- EBImage::paintObjects(
       x = nmask_watershed,
@@ -689,8 +752,8 @@ cellPixels <- function(input_dir = NULL,
       thick = TRUE,
       col='#ff00ff')
 
-    Image_nuclei_numbers <- EBImage::Image(Image_nuclei_numbers)
-    EBImage::colorMode(Image_nuclei_numbers) <- "color"
+    Image_nuclei_numbers <- EBImage::Image(Image_nuclei_numbers, colormode = "color")
+    # EBImage::colorMode(Image_nuclei_numbers) <- "color"
 
     Image_nuclei_numbers <- EBImage::paintObjects(
       x = nmask_watershed,
@@ -916,15 +979,15 @@ cellPixels <- function(input_dir = NULL,
 
       # Save black-and-white-image as cluster mask
       cluster_mask <- cmask
-#
-#       # Number of pixels of the nucleus mask
-#       number_of_pixels_nucleus_region <- sum(nucleus_mask)
-#
-#       # Number of pixels of the foreground without the nucleus part
-#       mask_foreground_wo_nucleus <- mask_foreground - nucleus_mask
-#       mask_foreground_wo_nucleus[mask_foreground_wo_nucleus < 0] <- 0
-#
-#       number_of_pixels_foreground_without_nucleus_region <- sum(mask_foreground_wo_nucleus)
+      #
+      #       # Number of pixels of the nucleus mask
+      #       number_of_pixels_nucleus_region <- sum(nucleus_mask)
+      #
+      #       # Number of pixels of the foreground without the nucleus part
+      #       mask_foreground_wo_nucleus <- mask_foreground - nucleus_mask
+      #       mask_foreground_wo_nucleus[mask_foreground_wo_nucleus < 0] <- 0
+      #
+      #       number_of_pixels_foreground_without_nucleus_region <- sum(mask_foreground_wo_nucleus)
 
       # Label each connected set of pixels with a distinct ID
       cmask <- EBImage::bwlabel(cmask)
@@ -1070,9 +1133,16 @@ cellPixels <- function(input_dir = NULL,
 
 
     if(image_format == "czi"){
-      df_results[i,"exposure_time_channel1"] <- df_metadata$laser_scan_pixel_time_1[1]
-      df_results[i,"exposure_time_channel2"] <- df_metadata$laser_scan_pixel_time_1[2]
-      df_results[i,"exposure_time_channel3"] <- df_metadata$laser_scan_pixel_time_1[3]
+      if("laser_scan_pixel_time_1" %in% names(df_metadata)){
+        df_results[i,"exposure_or_laser_scan_pixel_time_channel_1"] <- df_metadata$laser_scan_pixel_time_1[1]
+        df_results[i,"exposure_or_laser_scan_pixel_time_channel_2"] <- df_metadata$laser_scan_pixel_time_1[2]
+        df_results[i,"exposure_or_laser_scan_pixel_time_channel_3"] <- df_metadata$laser_scan_pixel_time_1[3]
+      }else if("exposure_time_1" %in% names(df_metadata)){
+        df_results[i,"exposure_or_laser_scan_pixel_time_channel_1"] <- df_metadata$exposure_time_1[1]
+        df_results[i,"exposure_or_laser_scan_pixel_time_channel_2"] <- df_metadata$exposure_time_2[2]
+        df_results[i,"exposure_or_laser_scan_pixel_time_channel_3"] <- df_metadata$exposure_time_3[3]
+      }
+
     }
 
     # Save all images ------------------------------------------------------
@@ -1114,13 +1184,19 @@ cellPixels <- function(input_dir = NULL,
       }
     }
 
-    tiff::writeTIFF(what = image_loaded,
-                    where = paste(output_dir,
-                                  image_name_wo_czi,
-                                  "_original.tif",
-                                  sep = ""),
-                    bits.per.sample = 8L, compression = "none",
-                    reduce = TRUE)
+    # tiff::writeTIFF(what = image_loaded,
+    #                 where = paste(output_dir,
+    #                               image_name_wo_czi,
+    #                               "_original.tif",
+    #                               sep = ""),
+    #                 bits.per.sample = 8L, compression = "none",
+    #                 reduce = TRUE)
+
+    Image_loaded <- EBImage::Image(data = image_loaded, colormode = "Color")
+    EBImage::writeImage(x = Image_loaded,
+                        files = paste(output_dir, image_name_wo_czi, "_original.tif", sep = ""),
+                        type = "tiff",
+                        bits.per.sample = 8)
 
     # Normalized and histogram-adapted images
     if(add_scale_bar){
@@ -1129,29 +1205,45 @@ cellPixels <- function(input_dir = NULL,
       image_histogram_equalization <- addScaleBar(image = image_histogram_equalization,
                                                   length_per_pixel = length_per_pixel_x)
     }
-    tiff::writeTIFF(what = image_normalized,
-                    where = paste(output_dir,
-                                  image_name_wo_czi,
-                                  "_normalized.tif",
-                                  sep = ""),
-                    bits.per.sample = 8L, compression = "none",
-                    reduce = TRUE)
 
-    tiff::writeTIFF(what = image_normalized_background,
-                    where = paste(output_dir,
-                                  image_name_wo_czi,
-                                  "_normalized_background.tif",
-                                  sep = ""),
-                    bits.per.sample = 8L, compression = "none",
-                    reduce = TRUE)
+    # tiff::writeTIFF(what = image_normalized,
+    #                 where = paste(output_dir,
+    #                               image_name_wo_czi,
+    #                               "_normalized.tif",
+    #                               sep = ""),
+    #                 bits.per.sample = 8L, compression = "none",
+    #                 reduce = TRUE)
+    Image_normalized <- EBImage::Image(data = image_normalized, colormode = "Color")
+    EBImage::writeImage(x = Image_normalized,
+                        files = paste(output_dir, image_name_wo_czi, "_normalized.tif", sep = ""),
+                        type = "tiff",
+                        bits.per.sample = 8)
 
-    tiff::writeTIFF(what = image_histogram_equalization,
-                    where = paste(output_dir,
-                                  image_name_wo_czi,
-                                  "_histogram_equalized.tif",
-                                  sep = ""),
-                    bits.per.sample = 8L, compression = "none",
-                    reduce = TRUE)
+    # tiff::writeTIFF(what = image_normalized_background,
+    #                 where = paste(output_dir,
+    #                               image_name_wo_czi,
+    #                               "_normalized_background.tif",
+    #                               sep = ""),
+    #                 bits.per.sample = 8L, compression = "none",
+    #                 reduce = TRUE)
+    Image_normalized_background <- EBImage::Image(data = image_normalized_background, colormode = "Color")
+    EBImage::writeImage(x = Image_normalized_background,
+                        files = paste(output_dir, image_name_wo_czi, "_normalized_background.tif", sep = ""),
+                        type = "tiff",
+                        bits.per.sample = 8)
+
+    # tiff::writeTIFF(what = image_histogram_equalization,
+    #                 where = paste(output_dir,
+    #                               image_name_wo_czi,
+    #                               "_histogram_equalized.tif",
+    #                               sep = ""),
+    #                 bits.per.sample = 8L, compression = "none",
+    #                 reduce = TRUE)
+    Image_histogram_equalization <- EBImage::Image(data = image_histogram_equalization, colormode = "Color")
+    EBImage::writeImage(x = Image_histogram_equalization,
+                        files = paste(output_dir, image_name_wo_czi, "_histogram_equalized.tif", sep = ""),
+                        type = "tiff",
+                        bits.per.sample = 8)
 
     # Images with marked nuclei
     if(add_scale_bar){
@@ -1160,21 +1252,31 @@ cellPixels <- function(input_dir = NULL,
       Image_nuclei_numbers <- addScaleBar(image = Image_nuclei_numbers,
                                           length_per_pixel = length_per_pixel_x)
     }
-    tiff::writeTIFF(what = Image_nuclei,
-                    where = paste(output_dir,
-                                  image_name_wo_czi,
-                                  "_nuclei.tif",
-                                  sep = ""),
-                    bits.per.sample = 8L, compression = "none",
-                    reduce = TRUE)
+    # tiff::writeTIFF(what = Image_nuclei,
+    #                 where = paste(output_dir,
+    #                               image_name_wo_czi,
+    #                               "_nuclei.tif",
+    #                               sep = ""),
+    #                 bits.per.sample = 8L, compression = "none",
+    #                 reduce = TRUE)
+    # Image_nuclei <- EBImage::Image(data = Image_nuclei, colormode = "Color")
+    EBImage::writeImage(x = Image_nuclei,
+                        files = paste(output_dir, image_name_wo_czi, "_nuclei.tif", sep = ""),
+                        type = "tiff",
+                        bits.per.sample = 8)
 
-    tiff::writeTIFF(what = Image_nuclei_numbers,
-                    where = paste(output_dir,
-                                  image_name_wo_czi,
-                                  "_nuclei_numbers.tif",
-                                  sep = ""),
-                    bits.per.sample = 8L, compression = "none",
-                    reduce = TRUE)
+    # tiff::writeTIFF(what = Image_nuclei_numbers,
+    #                 where = paste(output_dir,
+    #                               image_name_wo_czi,
+    #                               "_nuclei_numbers.tif",
+    #                               sep = ""),
+    #                 bits.per.sample = 8L, compression = "none",
+    #                 reduce = TRUE)
+    # Image_nuclei_numbers <- EBImage::Image(data = Image_nuclei_numbers, colormode = "Color")
+    EBImage::writeImage(x = Image_nuclei_numbers,
+                        files = paste(output_dir, image_name_wo_czi, "_nuclei_numbers.tif", sep = ""),
+                        type = "tiff",
+                        bits.per.sample = 8)
 
     # Images with marked nuclei and borders around the second protein in nuc
     if(add_scale_bar){
@@ -1183,13 +1285,18 @@ cellPixels <- function(input_dir = NULL,
         length_per_pixel = length_per_pixel_x)
     }
     if(!is.null(protein_in_nuc_color) & protein_in_nuc_color != "none"){
-      tiff::writeTIFF(what = Image_nuclei_numbers_proteins,
-                      where = paste(output_dir,
-                                    image_name_wo_czi,
-                                    "_nuclei_numbers_proteins1_nuc.tif",
-                                    sep = ""),
-                      bits.per.sample = 8L, compression = "none",
-                      reduce = TRUE)
+      # tiff::writeTIFF(what = Image_nuclei_numbers_proteins,
+      #                 where = paste(output_dir,
+      #                               image_name_wo_czi,
+      #                               "_nuclei_numbers_proteins1_nuc.tif",
+      #                               sep = ""),
+      #                 bits.per.sample = 8L, compression = "none",
+      #                 reduce = TRUE)
+      Image_nuclei_numbers_proteins <- EBImage::Image(data = Image_nuclei_numbers_proteins, colormode = "Color")
+      EBImage::writeImage(x = Image_nuclei_numbers_proteins,
+                          files = paste(output_dir, image_name_wo_czi, "_nuclei_numbers_proteins1_nuc.tif", sep = ""),
+                          type = "tiff",
+                          bits.per.sample = 8)
     }
 
     # Images with marked nuclei and borders around the third protein in
@@ -1200,13 +1307,18 @@ cellPixels <- function(input_dir = NULL,
         length_per_pixel = length_per_pixel_x)
     }
     if(!is.null(protein_in_cytosol_color) & protein_in_cytosol_color != "none"){
-      tiff::writeTIFF(what = Image_cytosol_numbers_proteins,
-                      where = paste(output_dir,
-                                    image_name_wo_czi,
-                                    "_nuclei_numbers_proteins2_cell.tif",
-                                    sep = ""),
-                      bits.per.sample = 8L, compression = "none",
-                      reduce = TRUE)
+      # tiff::writeTIFF(what = Image_cytosol_numbers_proteins,
+      #                 where = paste(output_dir,
+      #                               image_name_wo_czi,
+      #                               "_nuclei_numbers_proteins2_cell.tif",
+      #                               sep = ""),
+      #                 bits.per.sample = 8L, compression = "none",
+      #                 reduce = TRUE)
+      Image_cytosol_numbers_proteins <- EBImage::Image(data = Image_cytosol_numbers_proteins, colormode = "Color")
+      EBImage::writeImage(x = Image_cytosol_numbers_proteins,
+                          files = paste(output_dir, image_name_wo_czi, "_nuclei_numbers_proteins2_cell.tif", sep = ""),
+                          type = "tiff",
+                          bits.per.sample = 8)
     }
 
     # Images with left out nuclei and only with positions of nuclei
@@ -1218,21 +1330,34 @@ cellPixels <- function(input_dir = NULL,
         image = Image_non_nucleus_part,
         length_per_pixel = length_per_pixel_x)
     }
-    tiff::writeTIFF(what = Image_nucleus_part,
-                    where = paste(output_dir,
-                                  image_name_wo_czi,
-                                  "_nucleus_part.tif",
-                                  sep = ""),
-                    bits.per.sample = 8L, compression = "none",
-                    reduce = TRUE)
+    # tiff::writeTIFF(what = Image_nucleus_part,
+    #                 where = paste(output_dir,
+    #                               image_name_wo_czi,
+    #                               "_nucleus_part.tif",
+    #                               sep = ""),
+    #                 bits.per.sample = 8L, compression = "none",
+    #                 reduce = TRUE)
 
-    tiff::writeTIFF(what = Image_non_nucleus_part,
-                    where = paste(output_dir,
-                                  image_name_wo_czi,
-                                  "_nucleus_left_out.tif",
-                                  sep = ""),
-                    bits.per.sample = 8L, compression = "none",
-                    reduce = TRUE)
+    # (Image_nucleus_part contains also nuclei (parts) that have been deleted
+    # for nmask because they are too small or at the borders of the image.)
+    Image_nucleus_part <- EBImage::Image(data = Image_nucleus_part, colormode = "Color")
+    EBImage::writeImage(x = Image_nucleus_part,
+                        files = paste(output_dir, image_name_wo_czi, "_nucleus_part.tif", sep = ""),
+                        type = "tiff",
+                        bits.per.sample = 8)
+
+    # tiff::writeTIFF(what = Image_non_nucleus_part,
+    #                 where = paste(output_dir,
+    #                               image_name_wo_czi,
+    #                               "_nucleus_left_out.tif",
+    #                               sep = ""),
+    #                 bits.per.sample = 8L, compression = "none",
+    #                 reduce = TRUE)
+    Image_non_nucleus_part <- EBImage::Image(data = Image_non_nucleus_part, colormode = "Color")
+    EBImage::writeImage(x = Image_non_nucleus_part,
+                        files = paste(output_dir, image_name_wo_czi, "_nucleus_left_out.tif", sep = ""),
+                        type = "tiff",
+                        bits.per.sample = 8)
 
     # Normalized images with left out clusters and only with positions of clusters
     if(protein_in_membrane_color != "none" & apotome_section){
@@ -1244,21 +1369,31 @@ cellPixels <- function(input_dir = NULL,
           image = Image_non_clusters_part,
           length_per_pixel = length_per_pixel_x)
       }
-      tiff::writeTIFF(what = Image_clusters_part,
-                      where = paste(output_dir,
-                                    image_name_wo_czi,
-                                    "_normalized_clusters_part.tif",
-                                    sep = ""),
-                      bits.per.sample = 8L, compression = "none",
-                      reduce = TRUE)
+      # tiff::writeTIFF(what = Image_clusters_part,
+      #                 where = paste(output_dir,
+      #                               image_name_wo_czi,
+      #                               "_normalized_clusters_part.tif",
+      #                               sep = ""),
+      #                 bits.per.sample = 8L, compression = "none",
+      #                 reduce = TRUE)
+      Image_clusters_part <- EBImage::Image(data = Image_clusters_part, colormode = "Color")
+      EBImage::writeImage(x = Image_clusters_part,
+                          files = paste(output_dir, image_name_wo_czi, "_normalized_clusters_part.tif", sep = ""),
+                          type = "tiff",
+                          bits.per.sample = 8)
 
-      tiff::writeTIFF(what = Image_non_clusters_part,
-                      where = paste(output_dir,
-                                    image_name_wo_czi,
-                                    "_normalized_clusters_left_out.tif",
-                                    sep = ""),
-                      bits.per.sample = 8L, compression = "none",
-                      reduce = TRUE)
+      # tiff::writeTIFF(what = Image_non_clusters_part,
+      #                 where = paste(output_dir,
+      #                               image_name_wo_czi,
+      #                               "_normalized_clusters_left_out.tif",
+      #                               sep = ""),
+      #                 bits.per.sample = 8L, compression = "none",
+      #                 reduce = TRUE)
+      Image_non_clusters_part <- EBImage::Image(data = Image_non_clusters_part, colormode = "Color")
+      EBImage::writeImage(x = Image_non_clusters_part,
+                          files = paste(output_dir, image_name_wo_czi, "_normalized_clusters_left_out.tif", sep = ""),
+                          type = "tiff",
+                          bits.per.sample = 8)
     }
 
 
@@ -1291,7 +1426,7 @@ cellPixels <- function(input_dir = NULL,
 
   if(!is.null(df_results)){
     utils::write.csv(df_results,
-                     file = paste(output_dir, "image_analysis_summary.csv", sep=""), row.names = FALSE)
+                     file = paste(output_dir, "image_analysis_summary_en.csv", sep=""), row.names = FALSE)
 
     utils::write.csv2(df_results,
                       file = paste(output_dir, "image_analysis_summary_de.csv", sep=""), row.names = FALSE)
