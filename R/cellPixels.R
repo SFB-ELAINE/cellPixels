@@ -1201,9 +1201,9 @@ cellPixels <- function(input_dir = NULL,
     # Normalized and histogram-adapted images
     if(add_scale_bar){
       image_normalized <- addScaleBar(image = image_normalized,
-                                      length_per_pixel = length_per_pixel_x)
+                                      length_per_pixel = length_per_pixel_x_in_um)
       image_histogram_equalization <- addScaleBar(image = image_histogram_equalization,
-                                                  length_per_pixel = length_per_pixel_x)
+                                                  length_per_pixel = length_per_pixel_x_in_um)
     }
 
     # tiff::writeTIFF(what = image_normalized,
@@ -1248,9 +1248,9 @@ cellPixels <- function(input_dir = NULL,
     # Images with marked nuclei
     if(add_scale_bar){
       Image_nuclei <- addScaleBar(image = Image_nuclei,
-                                  length_per_pixel = length_per_pixel_x)
+                                  length_per_pixel = length_per_pixel_x_in_um)
       Image_nuclei_numbers <- addScaleBar(image = Image_nuclei_numbers,
-                                          length_per_pixel = length_per_pixel_x)
+                                          length_per_pixel = length_per_pixel_x_in_um)
     }
     # tiff::writeTIFF(what = Image_nuclei,
     #                 where = paste(output_dir,
@@ -1282,7 +1282,7 @@ cellPixels <- function(input_dir = NULL,
     if(add_scale_bar){
       Image_nuclei_numbers_proteins <- addScaleBar(
         image = Image_nuclei_numbers_proteins,
-        length_per_pixel = length_per_pixel_x)
+        length_per_pixel = length_per_pixel_x_in_um)
     }
     if(!is.null(protein_in_nuc_color) & protein_in_nuc_color != "none"){
       # tiff::writeTIFF(what = Image_nuclei_numbers_proteins,
@@ -1304,7 +1304,7 @@ cellPixels <- function(input_dir = NULL,
     if(add_scale_bar){
       Image_cytosol_numbers_proteins <- addScaleBar(
         image = Image_cytosol_numbers_proteins,
-        length_per_pixel = length_per_pixel_x)
+        length_per_pixel = length_per_pixel_x_in_um)
     }
     if(!is.null(protein_in_cytosol_color) & protein_in_cytosol_color != "none"){
       # tiff::writeTIFF(what = Image_cytosol_numbers_proteins,
@@ -1325,10 +1325,10 @@ cellPixels <- function(input_dir = NULL,
     if(add_scale_bar){
       Image_nucleus_part <- addScaleBar(
         image = Image_nucleus_part,
-        length_per_pixel = length_per_pixel_x)
+        length_per_pixel = length_per_pixel_x_in_um)
       Image_non_nucleus_part <- addScaleBar(
         image = Image_non_nucleus_part,
-        length_per_pixel = length_per_pixel_x)
+        length_per_pixel = length_per_pixel_x_in_um)
     }
     # tiff::writeTIFF(what = Image_nucleus_part,
     #                 where = paste(output_dir,
@@ -1364,10 +1364,10 @@ cellPixels <- function(input_dir = NULL,
       if(add_scale_bar){
         Image_clusters_part <- addScaleBar(
           image = Image_clusters_part,
-          length_per_pixel = length_per_pixel_x)
+          length_per_pixel = length_per_pixel_x_in_um)
         Image_non_clusters_part <- addScaleBar(
           image = Image_non_clusters_part,
-          length_per_pixel = length_per_pixel_x)
+          length_per_pixel = length_per_pixel_x_in_um)
       }
       # tiff::writeTIFF(what = Image_clusters_part,
       #                 where = paste(output_dir,
