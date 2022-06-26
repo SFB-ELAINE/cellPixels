@@ -7,10 +7,13 @@
 #' @export addScaleBar
 #' @param image An array (2 or 3 dimensional array, could also be of
 #' formal class Image by package EBImage)
+#' @param length_per_pixel_in_um A number (length per pixel in um)
+#' @param distance_from_border A number (distance in pixels for the scale bar)
 #' @param number_size_factor A number (factor for resizing the number)
 
+
 addScaleBar <- function(image = NULL,
-                        length_per_pixel = NULL,
+                        length_per_pixel_in_um = NULL,
                         distance_from_border = 20,
                         number_size_factor = 1){
 
@@ -22,7 +25,7 @@ addScaleBar <- function(image = NULL,
   dim_z <- dim(image)[3]
 
 
-  dim_x_microns <- dim_x * length_per_pixel * 1e6
+  dim_x_microns <- dim_x * length_per_pixel_in_um
   length_scale_bar_microns <- round(dim_x_microns / 10)
 
   if(length_scale_bar_microns < 10){
@@ -40,7 +43,7 @@ addScaleBar <- function(image = NULL,
   }
 
   length_scale_bar_pixels <- length_scale_bar_microns /
-    (length_per_pixel*1e6)
+    (length_per_pixel_in_um)
 
   length_scale_bar_pixels <- as.integer(round(length_scale_bar_pixels))
   heigth_scale_bar_pixels <- as.integer(round(dim_y/150))

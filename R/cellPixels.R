@@ -1156,7 +1156,7 @@ cellPixels <- function(input_dir = NULL,
       #   x = metadata)
       # length_per_pixel_x <- tolower(length_per_pixel_x)
       # length_per_pixel_x <- as.numeric(length_per_pixel_x)
-      length_per_pixel_x <- df_metadata$scaling_x[1]
+      length_per_pixel_x_in_um <- df_metadata$scaling_x_in_um[1]
 
       # length_per_pixel_y <- gsub(
       #   pattern = paste(".+<Items>.+<Distance Id=\"Y\">[[:space:]]+",
@@ -1165,9 +1165,9 @@ cellPixels <- function(input_dir = NULL,
       #   x = metadata)
       # length_per_pixel_y <- tolower(length_per_pixel_y)
       # length_per_pixel_y <- as.numeric(length_per_pixel_y)
-      length_per_pixel_y <- df_metadata$scaling_y[1]
+      length_per_pixel_y_in_um <- df_metadata$scaling_y_in_um[1]
 
-      if(length_per_pixel_x != length_per_pixel_y){
+      if(length_per_pixel_x_in_um != length_per_pixel_y_in_um){
         print("Dimension in x- and y-directions are different! ERROR!")
       }
 
@@ -1180,7 +1180,7 @@ cellPixels <- function(input_dir = NULL,
       # Original image (converted to tif)
       if(add_scale_bar){
         image_loaded <- addScaleBar(image = image_loaded,
-                                    length_per_pixel = length_per_pixel_x)
+                                    length_per_pixel = length_per_pixel_x_in_um)
       }
     }
 
