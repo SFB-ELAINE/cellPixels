@@ -1451,6 +1451,8 @@ cellPixels <- function(input_dir = NULL,
                         "add_scale_bar", "thresh_w_h_nuc",
                         "thresh_offset", "blur_sigma",
                         "use_histogram_equalized",
+                        "metadata_file",
+                        "normalize_nuclei_layer",
                         ".old.options")
 
     remove_variables <- list_of_variables[
