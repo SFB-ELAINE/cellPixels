@@ -24,6 +24,8 @@
 #' where found cells are disregarded)
 #' @param add_scale_bar A logic (add scale bar to all images that are saved
 #' if true)
+#' @param metadata_file A character (file with meta data if tifs are used)
+#' @param normalize_nuclei_layer A boolean (state whether nucleus layer should be normalized)
 
 cellPixels <- function(input_dir = NULL,
                        apotome = FALSE,
@@ -39,7 +41,9 @@ cellPixels <- function(input_dir = NULL,
                        thresh_w_h_nuc = NULL,
                        thresh_offset = NULL,
                        blur_sigma = NULL,
-                       use_histogram_equalized = FALSE) {
+                       use_histogram_equalized = FALSE,
+                       metadata_file = NULL,
+                       normalize_nuclei_layer = FALSE) {
 
   # Basics and sourcing functions ------------------------------------------
   .old.options <- options()
@@ -141,10 +145,7 @@ cellPixels <- function(input_dir = NULL,
     "number_of_pixels_foreground_without_nucleus_region" = rep(NA, number_of_images),
     "number_of_clusters" = rep(NA, number_of_images),
     "mean_cluster_size" = rep(NA, number_of_images),
-    "median_cluster_size" = rep(NA, number_of_images),
-    "exposure_or_laser_scan_pixel_time_channel_1" = rep(NA, number_of_images),
-    "exposure_or_laser_scan_pixel_time_channel_2" = rep(NA, number_of_images),
-    "exposure_or_laser_scan_pixel_time_channel_3" = rep(NA, number_of_images))
+    "median_cluster_size" = rep(NA, number_of_images))
 
   # Reduce the number of pixels for the borders because we will go from
   # 0 to number_of_pixels_at_border_to_disregard-1
@@ -411,13 +412,53 @@ cellPixels <- function(input_dir = NULL,
       # exposure_time <- unlist(strsplit(x = exposure_time, split = ","))
 
     }else if(image_format == "tif"){
-      # Load image (hyperstack)
-      image_loaded <- tiff::readTIFF(source = image_path, info = FALSE,
-                                     all = TRUE,
-                                     convert = FALSE, as.is = FALSE)
-      if(is.list(image_loaded)){
-        image_loaded <- image_loaded[[1]]
+      # Load image
+      # image_loaded <- tiff::readTIFF(source = image_path, info = FALSE,
+      #                                all = TRUE,
+      #                                convert = FALSE, as.is = FALSE)
+      image_loaded <- EBImage::readImage(files = image_path, type = "tiff")
+
+      # Read metadata
+      df_metadata <- read.csv(file = metadata_file)
+      df_metadata <- df_metadata[
+        gsub(pattern = "\\.czi", replacement = "", x = df_metadata$fileName) ==
+          gsub(pattern = "\\.tif", replacement = "", x = file_names[i]),]
+
+      # Reorder channels
+      image_dummy <- image_loaded
+      if(!is.na(df_metadata$red_channel[1])){
+        image_loaded[,,1] <- image_dummy[,,df_metadata$red_channel[1]]
       }
+      if(!is.na(df_metadata$red_channel[1])){
+        image_loaded[,,2] <- image_dummy[,,df_metadata$green_channel[1]]
+      }
+      if(!is.na(df_metadata$red_channel[1])){
+        image_loaded[,,3] <- image_dummy[,,df_metadata$blue_channel[1]]
+      }
+
+
+
+      # Reorder the channels depending on the channel information
+
+
+      # if(is.list(image_loaded)){
+      #   # Combine channels into one array
+      #   image_dummy <- array(dim = c(dim(image_loaded[[1]])[1],
+      #                                dim(image_loaded[[1]])[2],
+      #                                length(image_loaded) ), data = 0)
+      #
+      #   for(layer in 1:length(image_loaded)){
+      #     image_dummy[,,layer] <- image_loaded[[layer]]
+      #   }
+      #
+      #   image_loaded <- image_dummy
+      #   rm(image_dummy)
+      #
+      # }
+
+      # Load metadata
+
+
     }
 
 
@@ -528,15 +569,13 @@ cellPixels <- function(input_dir = NULL,
     }
 
     # Brighten nuclei image for apotome section image
-    if(apotome_section){
+    if(normalize_nuclei_layer || apotome_section){
       image_nuclei <- image_nuclei/max(image_nuclei)
     }
 
     Image_nuclei <- EBImage::Image(image_nuclei)
     rm(image_nuclei)
     #display(Image_nuclei)
-
-
 
     # Blur the image
     if(is.null(blur_sigma)){
@@ -1132,22 +1171,22 @@ cellPixels <- function(input_dir = NULL,
     df_results[i, "median_cluster_size"] <- median_cluster_size
 
 
-    if(image_format == "czi"){
-      if("laser_scan_pixel_time_1" %in% names(df_metadata)){
-        df_results[i,"exposure_or_laser_scan_pixel_time_channel_1"] <- df_metadata$laser_scan_pixel_time_1[1]
-        df_results[i,"exposure_or_laser_scan_pixel_time_channel_2"] <- df_metadata$laser_scan_pixel_time_1[2]
-        df_results[i,"exposure_or_laser_scan_pixel_time_channel_3"] <- df_metadata$laser_scan_pixel_time_1[3]
-      }else if("exposure_time_1" %in% names(df_metadata)){
-        df_results[i,"exposure_or_laser_scan_pixel_time_channel_1"] <- df_metadata$exposure_time_1[1]
-        df_results[i,"exposure_or_laser_scan_pixel_time_channel_2"] <- df_metadata$exposure_time_2[2]
-        df_results[i,"exposure_or_laser_scan_pixel_time_channel_3"] <- df_metadata$exposure_time_3[3]
-      }
-
-    }
+    # if(image_format == "czi"){
+    #   if("laser_scan_pixel_time_1" %in% names(df_metadata)){
+    #     df_results[i,"exposure_or_laser_scan_pixel_time_channel_1"] <- df_metadata$laser_scan_pixel_time_1[1]
+    #     df_results[i,"exposure_or_laser_scan_pixel_time_channel_2"] <- df_metadata$laser_scan_pixel_time_1[2]
+    #     df_results[i,"exposure_or_laser_scan_pixel_time_channel_3"] <- df_metadata$laser_scan_pixel_time_1[3]
+    #   }else if("exposure_time_1" %in% names(df_metadata)){
+    #     df_results[i,"exposure_or_laser_scan_pixel_time_channel_1"] <- df_metadata$exposure_time_1[1]
+    #     df_results[i,"exposure_or_laser_scan_pixel_time_channel_2"] <- df_metadata$exposure_time_2[2]
+    #     df_results[i,"exposure_or_laser_scan_pixel_time_channel_3"] <- df_metadata$exposure_time_3[3]
+    #   }
+    #
+    # }
 
     # Save all images ------------------------------------------------------
 
-    if(image_format == "czi"){
+    # if(image_format == "czi"){
       # Get information for adding a scale bar
       # length_per_pixel_x <- gsub(
       #   pattern = paste(".+<Items>[[:space:]]+<Distance Id=\"X\">[[:space:]]+",
@@ -1182,7 +1221,7 @@ cellPixels <- function(input_dir = NULL,
         image_loaded <- addScaleBar(image = image_loaded,
                                     length_per_pixel = length_per_pixel_x_in_um)
       }
-    }
+    # }
 
     # tiff::writeTIFF(what = image_loaded,
     #                 where = paste(output_dir,
