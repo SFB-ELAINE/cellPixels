@@ -422,7 +422,7 @@ cellPixels <- function(input_dir = NULL,
       df_metadata <- read.csv(file = metadata_file)
       df_metadata <- df_metadata[
         gsub(pattern = "\\.czi", replacement = "", x = df_metadata$fileName) ==
-          gsub(pattern = "\\.tif", replacement = "", x = file_names[i]),]
+          gsub(pattern = "_co\\.tif", replacement = "", x = file_names[i]),]
 
       # Reorder channels
       image_dummy <- image_loaded

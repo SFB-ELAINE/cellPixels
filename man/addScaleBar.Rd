@@ -9,7 +9,7 @@
 \usage{
 addScaleBar(
   image = NULL,
-  length_per_pixel = NULL,
+  length_per_pixel_in_um = NULL,
   distance_from_border = 20,
   number_size_factor = 1
 )
@@ -17,6 +17,10 @@ addScaleBar(
 \arguments{
 \item{image}{An array (2 or 3 dimensional array, could also be of
 formal class Image by package EBImage)}
+
+\item{length_per_pixel_in_um}{A number (length per pixel in um)}
+
+\item{distance_from_border}{A number (distance in pixels for the scale bar)}
 
 \item{number_size_factor}{A number (factor for resizing the number)}
 }

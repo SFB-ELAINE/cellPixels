@@ -21,7 +21,8 @@ cellPixels(
   thresh_w_h_nuc = NULL,
   thresh_offset = NULL,
   blur_sigma = NULL,
-  use_histogram_equalized = FALSE
+  use_histogram_equalized = FALSE,
+  metadata_file = NULL
 )
 }
 \arguments{
@@ -53,6 +54,8 @@ where found cells are disregarded)}
 
 \item{add_scale_bar}{A logic (add scale bar to all images that are saved
 if true)}
+
+\item{metadata_file}{A character (file with meta data if tifs are used)}
 }
 \description{
 Main function for counting pixels in different regions
