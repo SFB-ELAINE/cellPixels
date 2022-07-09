@@ -22,7 +22,9 @@ cellPixels(
   thresh_offset = NULL,
   blur_sigma = NULL,
   use_histogram_equalized = FALSE,
-  metadata_file = NULL
+  metadata_file = NULL,
+  normalize_nuclei_layer = FALSE,
+  magnification_objective = NULL
 )
 }
 \arguments{
@@ -56,12 +58,16 @@ where found cells are disregarded)}
 if true)}
 
 \item{metadata_file}{A character (file with meta data if tifs are used)}
+
+\item{normalize_nuclei_layer}{A boolean (state whether nucleus layer should be normalized)}
+
+\item{magnification_objective}{A number (magnification of objective if not given in metadata or if metadata is wrong)}
 }
 \description{
 Main function for counting pixels in different regions
 }
 \details{
-Input should be tif-format.
+Input should be czi or tif-format with dim(z)>=1.
 We are counting the intensities of pixels of different color within and
 outside of the nuclei. We also add information about the entire image.
 }

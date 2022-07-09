@@ -1,6 +1,6 @@
 #' @title cellPixels
 #' @description Main function for counting pixels in different regions
-#' @details Input should be tif-format.
+#' @details Input should be czi or tif-format with dim(z)>=1.
 #' We are counting the intensities of pixels of different color within and
 #' outside of the nuclei. We also add information about the entire image.
 #' @aliases cellpixels CellPixels
@@ -26,6 +26,7 @@
 #' if true)
 #' @param metadata_file A character (file with meta data if tifs are used)
 #' @param normalize_nuclei_layer A boolean (state whether nucleus layer should be normalized)
+#' @param magnification_objective A number (magnification of objective if not given in metadata or if metadata is wrong)
 
 cellPixels <- function(input_dir = NULL,
                        apotome = FALSE,
@@ -43,7 +44,8 @@ cellPixels <- function(input_dir = NULL,
                        blur_sigma = NULL,
                        use_histogram_equalized = FALSE,
                        metadata_file = NULL,
-                       normalize_nuclei_layer = FALSE) {
+                       normalize_nuclei_layer = FALSE,
+                       magnification_objective = NULL) {
 
   # Basics and sourcing functions ------------------------------------------
   .old.options <- options()
@@ -582,20 +584,32 @@ cellPixels <- function(input_dir = NULL,
       if(apotome_section){
         Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 14)
       }else{
-        Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 7)
+        # Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 7)
+        Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = 6)
       }
     }else if(blur_sigma > 0){
       Image_nuclei <- EBImage::gblur(Image_nuclei, sigma = blur_sigma)
     }
 
 
+    if(is.null(magnification_objective)){
+      magnification <- df_metadata$objective_magnification[df_metadata$fileName == file_names[i]]
+    }else{
+      magnification <- magnification_objective
+    }
+
+
     # Mask the nuclei
     if(is.null(thresh_w_h_nuc) || is.null(thresh_offset)){
-      if(grepl(pattern = "_20x_", file_names[i])){
-        # Smaller moving rectangle if the magnification is 20x (instead of 40x)
+
+      if(magnification < 20){
+        # Smaller moving rectangle if the objective magnification is e.g. 10x
+        nmask <- EBImage::thresh(Image_nuclei, w=8, h=8, offset=0.01)
+      }else if(magnification < 40){ # Magnification of objective could be 20
+        # Smaller moving rectangle if the objective magnification is e.g. 20x
         nmask <- EBImage::thresh(Image_nuclei, w=15, h=15, offset=0.01)
       }else{
-        # Magnification of 40x
+        # Objective magnification of 40x
         nmask <- EBImage::thresh(Image_nuclei, w=30, h=30, offset=0.01)
       }
     }else{
@@ -625,6 +639,52 @@ cellPixels <- function(input_dir = NULL,
     nmask <- EBImage::bwlabel(nmask)
 
     #display(nmask)
+
+
+    # Watershed in order to distinct nuclei that are too close to each other
+    # nmask_watershed <-  EBImage::watershed(
+    #   EBImage::distmap(nmask), tolerance = 0.4, ext = 2)
+
+    # if(magnification < 20){
+    #   nmask_watershed <-  EBImage::watershed(
+    #     EBImage::distmap(nmask), tolerance = 0.1, ext = 3)
+    # }else if(magnification < 40){
+    #   nmask_watershed <-  EBImage::watershed(
+    #     EBImage::distmap(nmask), tolerance = 0.1, ext = 6)
+    # }else{
+    #   nmask_watershed <-  EBImage::watershed(
+    #     EBImage::distmap(nmask), tolerance = 0.1, ext = 9)
+    # }
+    #
+    # if(magnification < 20){
+    #   nmask_watershed <-  EBImage::watershed(
+    #     EBImage::distmap(nmask), tolerance = 0.45, ext = 3) # it was tolerance = 0.5
+    # }else if(magnification < 40){
+    #   nmask_watershed <-  EBImage::watershed(
+    #     EBImage::distmap(nmask), tolerance = 0.45, ext = 2)
+    # }else{
+    #   nmask_watershed <-  EBImage::watershed(
+    #     EBImage::distmap(nmask), tolerance = 0.3, ext = 3) # used to be 045, 9
+    # }
+
+    if(magnification < 20){
+      nmask_watershed <-  EBImage::watershed(
+        EBImage::distmap(nmask), tolerance = 0.45, ext = 3) # it was tolerance = 0.5
+    }else if(magnification < 40){
+      nmask_watershed <-  EBImage::watershed(
+        EBImage::distmap(nmask), tolerance = 0.1, ext = 6) #sqrt(15), see thresh(Image_nuclei...
+    }else{
+      nmask_watershed <-  EBImage::watershed(
+        EBImage::distmap(nmask), tolerance = 0.3, ext = 3) # used to be 045, 9
+    }
+
+
+    #display(colorLabels(nmask_watershed), all=TRUE)
+    #display(colorLabels(nmask), all=TRUE)
+    # display(colorLabels(EBImage::watershed(EBImage::distmap(nmask), tolerance = 0.05, ext = 4)), all=TRUE)
+
+    nmask <- nmask_watershed
+
 
     # Record all nuclei that are at the edges of the image
     left  <- table(nmask[1:number_of_pixels_at_border_to_disregard,
@@ -658,14 +718,14 @@ cellPixels <- function(input_dir = NULL,
       rm(j)
     }
 
-    #display(nmask)
+    # display(colorLabels(nmask), all=TRUE)
 
     # Delete all remaining nuclei that are smaller than 5% of the median size
     # object sizes
     # barplot(table(nmask)[-1])
 
     table_nmask <- table(nmask)
-    nuc_min_size <- 0.1*stats::median(table_nmask[-1])
+    nuc_min_size <- 0.2*stats::median(table_nmask[-1])
 
     # remove objects that are smaller than min_nuc_size
     to_be_removed <- as.integer(names(which(table_nmask < nuc_min_size)))
@@ -678,15 +738,17 @@ cellPixels <- function(input_dir = NULL,
     }
 
     # Recount nuclei
-    nmask <- EBImage::bwlabel(nmask)
-    #display(nmask)
-
-    # Watershed in order to distinct nuclei that are too close to each other
-    nmask_watershed <-  EBImage::watershed(
-      EBImage::distmap(nmask), tolerance = 0.4, ext = 2)
-    #display(colorLabels(nmask_watershed), all=TRUE)
+    table_nmask <- table(nmask)
+    number_of_nuclei <- length(table_nmask)-1
+    if(number_of_nuclei >= 1){
+      for(nuc_id in 1:number_of_nuclei){
+        current_nuc_id <- as.numeric(names(table_nmask))[nuc_id+1]
+        nmask[nmask == current_nuc_id] <- nuc_id
+      }
+    }
 
     # Count number of cells
+    nmask_watershed <- nmask
     nucNo <- max(nmask_watershed)
 
     # Include numbers of nuclei
@@ -1453,6 +1515,7 @@ cellPixels <- function(input_dir = NULL,
                         "use_histogram_equalized",
                         "metadata_file",
                         "normalize_nuclei_layer",
+                        "magnification_objective",
                         ".old.options")
 
     remove_variables <- list_of_variables[
