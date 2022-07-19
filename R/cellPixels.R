@@ -608,9 +608,12 @@ cellPixels <- function(input_dir = NULL,
       }else if(magnification < 40){ # Magnification of objective could be 20
         # Smaller moving rectangle if the objective magnification is e.g. 20x
         nmask <- EBImage::thresh(Image_nuclei, w=15, h=15, offset=0.01)
-      }else{
+      }else if(magnification < 60){
         # Objective magnification of 40x
         nmask <- EBImage::thresh(Image_nuclei, w=30, h=30, offset=0.01)
+      }else{
+        # Objective magnification of 63x
+        nmask <- EBImage::thresh(Image_nuclei, w=500, h=500, offset=0.03)
       }
     }else{
       nmask <- EBImage::thresh(Image_nuclei, w=thresh_w_h_nuc, h=thresh_w_h_nuc, offset=thresh_offset)
@@ -673,15 +676,20 @@ cellPixels <- function(input_dir = NULL,
     }else if(magnification < 40){
       nmask_watershed <-  EBImage::watershed(
         EBImage::distmap(nmask), tolerance = 0.1, ext = 6) #sqrt(15), see thresh(Image_nuclei...
+    }else if(magnification < 60){
+      nmask_watershed <-  EBImage::watershed(
+        EBImage::distmap(nmask), tolerance = 0.1, ext = 6) # used to be 045, 9 | 0.3, 3
     }else{
       nmask_watershed <-  EBImage::watershed(
-        EBImage::distmap(nmask), tolerance = 0.3, ext = 3) # used to be 045, 9
+        EBImage::distmap(nmask), tolerance = 0.1, ext = 6) # used to be 045, 9 | 0.3, 3
+
+      display(colorLabels(EBImage::watershed(EBImage::distmap(nmask), tolerance = 0.1, ext = 6)), all=TRUE)
     }
 
 
     #display(colorLabels(nmask_watershed), all=TRUE)
     #display(colorLabels(nmask), all=TRUE)
-    # display(colorLabels(EBImage::watershed(EBImage::distmap(nmask), tolerance = 0.05, ext = 4)), all=TRUE)
+    # display(colorLabels(EBImage::watershed(EBImage::distmap(nmask), tolerance = 0.3, ext = 6)), all=TRUE)
 
     nmask <- nmask_watershed
 
@@ -892,12 +900,23 @@ cellPixels <- function(input_dir = NULL,
 
 
       # Mask the proteins within the nucleus
-      if(grepl(pattern = "_20x_", file_names[i])){
+
+      # if(grepl(pattern = "_20x_", file_names[i])){
+      #   # Smaller moving rectangle if the magnification is 20x (instead of 40x)
+      #   pmask <- EBImage::thresh(Image_protein_in_nuc, w=15, h=15, offset=0.07)
+      # }else{
+      #   pmask <- EBImage::thresh(Image_protein_in_nuc, w=35, h=35, offset=0.07)
+      # }
+
+      if(magnification < 20){
+        pmask <- EBImage::thresh(Image_protein_in_nuc, w=8, h=8, offset=0.07)
+      }else if(magnification < 40){
         # Smaller moving rectangle if the magnification is 20x (instead of 40x)
         pmask <- EBImage::thresh(Image_protein_in_nuc, w=15, h=15, offset=0.07)
       }else{
         pmask <- EBImage::thresh(Image_protein_in_nuc, w=35, h=35, offset=0.07)
       }
+
 
       # Morphological opening to remove objects smaller than the structuring element
       pmask <- EBImage::opening(pmask, EBImage::makeBrush(5, shape='disc'))
@@ -962,7 +981,16 @@ cellPixels <- function(input_dir = NULL,
       #display(Image_protein_in_nuc)
 
       # Mask the proteins within the cytosol
-      if(grepl(pattern = "_20x_", file_names[i])){
+      # if(grepl(pattern = "_20x_", file_names[i])){
+      #   # Smaller moving rectangle if the magnification is 20x (instead of 40x)
+      #   cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=100, h=100, offset=0.01)
+      # }else{
+      #   cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=200, h=200, offset=0.01)
+      # }
+
+      if(magnification < 20){
+        cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=50, h=50, offset=0.01)
+      }else if(magnification < 40){
         # Smaller moving rectangle if the magnification is 20x (instead of 40x)
         cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=100, h=100, offset=0.01)
       }else{
@@ -1066,7 +1094,8 @@ cellPixels <- function(input_dir = NULL,
 
 
       # Mask the clusters
-      if(grepl(pattern = "_63x_", file_names[i])){
+      # if(grepl(pattern = "_63x_", file_names[i])){
+      if(magnification == 63){
         cmask <- EBImage::thresh(Image_membrane_ligands, w=500, h=500, offset=0.19)
       }else{
         print("magnification of objective other than 63x used")
