@@ -24,6 +24,9 @@
 #' where found cells are disregarded)
 #' @param add_scale_bar A logic (add scale bar to all images that are saved
 #' if true)
+#' @param thresh_w_h_nuc A number (right now, both thresh_w_h_nuc and
+#' thresh_offset must be supplied even if only one of them should be changed
+#' manually)
 #' @param metadata_file A character (file with meta data if tifs are used)
 #' @param normalize_nuclei_layer A boolean (state whether nucleus layer should be normalized)
 #' @param magnification_objective A number (magnification of objective if not given in metadata or if metadata is wrong)
@@ -854,6 +857,7 @@ cellPixels <- function(input_dir = NULL,
     # Add border of nuclei and save file
     Image_nuclei <- EBImage::Image(Image_nuclei, colormode = "color")
     # EBImage::colorMode(Image_nuclei) <- "color"
+    # display(Image_nuclei)
 
     Image_nuclei <- EBImage::paintObjects(
       x = nmask_watershed,
@@ -890,33 +894,50 @@ cellPixels <- function(input_dir = NULL,
       # Save only color layer of the second protein colored
       image_protein_in_nuc <- getLayer(image = image_loaded,
                                        layer = protein_in_nuc_color)
+
+      if(use_histogram_equalized){
+        image_protein_in_nuc <- EBImage::clahe(x = image_protein_in_nuc, nx = 4)
+        #display(image_protein_in_nuc)
+      }
+
       Image_protein_in_nuc <- EBImage::Image(image_protein_in_nuc)
       rm(image_protein_in_nuc)
       #display(Image_protein_in_nuc)
 
       # Blur the image
-      Image_protein_in_nuc <- EBImage::gblur(Image_protein_in_nuc, sigma = 7)
+      if(is.null(blur_sigma)){
+        if(apotome_section){
+          Image_protein_in_nuc <- EBImage::gblur(Image_protein_in_nuc, sigma = 14)
+        }else{
+          Image_protein_in_nuc <- EBImage::gblur(Image_protein_in_nuc, sigma = 6)
+        }
+      }else if(blur_sigma > 0){
+        Image_protein_in_nuc <- EBImage::gblur(Image_protein_in_nuc, sigma = blur_sigma)
+      }
+
       #display(Image_protein_in_nuc)
 
 
       # Mask the proteins within the nucleus
+      if(is.null(thresh_w_h_nuc) || is.null(thresh_offset)){
 
-      # if(grepl(pattern = "_20x_", file_names[i])){
-      #   # Smaller moving rectangle if the magnification is 20x (instead of 40x)
-      #   pmask <- EBImage::thresh(Image_protein_in_nuc, w=15, h=15, offset=0.07)
-      # }else{
-      #   pmask <- EBImage::thresh(Image_protein_in_nuc, w=35, h=35, offset=0.07)
-      # }
-
-      if(magnification < 20){
-        pmask <- EBImage::thresh(Image_protein_in_nuc, w=8, h=8, offset=0.07)
-      }else if(magnification < 40){
-        # Smaller moving rectangle if the magnification is 20x (instead of 40x)
-        pmask <- EBImage::thresh(Image_protein_in_nuc, w=15, h=15, offset=0.07)
+        if(magnification < 20){
+          # Smaller moving rectangle if the objective magnification is e.g. 10x
+          pmask <- EBImage::thresh(Image_protein_in_nuc, w=8, h=8, offset=0.01)
+        }else if(magnification < 40){ # Magnification of objective could be 20
+          # Smaller moving rectangle if the objective magnification is e.g. 20x
+          pmask <- EBImage::thresh(Image_protein_in_nuc, w=15, h=15, offset=0.01)
+        }else if(magnification < 60){
+          # Objective magnification of 40x
+          pmask <- EBImage::thresh(Image_protein_in_nuc, w=30, h=30, offset=0.01)
+        }else{
+          # Objective magnification of 63x
+          pmask <- EBImage::thresh(Image_protein_in_nuc, w=500, h=500, offset=0.03)
+        }
       }else{
-        pmask <- EBImage::thresh(Image_protein_in_nuc, w=35, h=35, offset=0.07)
+        pmask <- EBImage::thresh(Image_protein_in_nuc, w=thresh_w_h_nuc, h=thresh_w_h_nuc, offset=thresh_offset)
       }
-
+      #display(pmask)
 
       # Morphological opening to remove objects smaller than the structuring element
       pmask <- EBImage::opening(pmask, EBImage::makeBrush(5, shape='disc'))
@@ -945,7 +966,7 @@ cellPixels <- function(input_dir = NULL,
         x = n_p_mask,
         tgt = Image_nuclei_numbers_proteins,
         opac = c(1,0.5),
-        col=c('#FE1F14','#FE1F14'))
+        col=c('#D7FE14','#D7FE14'))
 
       # Display the number of nuclei with proteins
       print(paste("Number of nuclei that contain other colored proteins: ",
