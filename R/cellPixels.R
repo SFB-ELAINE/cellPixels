@@ -150,7 +150,9 @@ cellPixels <- function(input_dir = NULL,
     "number_of_pixels_foreground_without_nucleus_region" = rep(NA, number_of_images),
     "number_of_clusters" = rep(NA, number_of_images),
     "mean_cluster_size" = rep(NA, number_of_images),
-    "median_cluster_size" = rep(NA, number_of_images))
+    "median_cluster_size" = rep(NA, number_of_images),
+    "image_cropped" = rep(NA, number_of_images)
+    )
 
   # Reduce the number of pixels for the borders because we will go from
   # 0 to number_of_pixels_at_border_to_disregard-1
@@ -466,6 +468,37 @@ cellPixels <- function(input_dir = NULL,
 
     }
 
+    # Reduce image size if dim_x % 4 != 0 or dim_y % 4 != 0
+    # (The implementation of EBImage::clahe assumes that the X- and Y image
+    # dimensions are an integer multiple of the X- and Y sizes of the
+    # contextual regions)
+
+    number_of_contextual_regions <- 4
+
+    # dim x
+    number_of_pixels_to_crop_x <- dim(image_loaded)[1] %% number_of_contextual_regions
+    number_of_pixels_to_crop_y <- dim(image_loaded)[2] %% number_of_contextual_regions
+    image_cropped <- "no"
+
+    if(number_of_pixels_to_crop_x != 0 || number_of_pixels_to_crop_y != 0){
+      print(paste0("The x or y dimension is not a multiple of ",
+                   number_of_contextual_regions,
+                   ". Therefore, we are cropping the image."))
+
+      image_cropped <- "yes"
+
+      if(length(dim(image_loaded)==3)){
+        image_loaded <- image_loaded[
+          1:(dim(image_loaded)[1]-number_of_pixels_to_crop_x),
+          1:(dim(image_loaded)[2]-number_of_pixels_to_crop_y),]
+      }else if(length(dim(image_loaded)==2)){
+        image_loaded <- image_loaded[
+          1:(dim(image_loaded)[1]-number_of_pixels_to_crop_x),
+          1:(dim(image_loaded)[2]-number_of_pixels_to_crop_y)]
+      }
+
+    }
+
 
     # # Combine every channel of the image (separate list item) into one
     # # matrix
@@ -562,7 +595,7 @@ cellPixels <- function(input_dir = NULL,
     rm(j)
 
     # Use Contrast Limited Adaptive Histogram Equalization
-    image_histogram_equalization <- EBImage::clahe(x = image_loaded, nx = 4)
+    image_histogram_equalization <- EBImage::clahe(x = image_loaded, nx = number_of_contextual_regions)
 
     # Find the nuclei ------------------------------------------------------
 
@@ -1281,6 +1314,8 @@ cellPixels <- function(input_dir = NULL,
     df_results[i, "number_of_clusters"] <- clustersNo
     df_results[i, "mean_cluster_size"] <- mean_cluster_size
     df_results[i, "median_cluster_size"] <- median_cluster_size
+
+    df_results[i, "iamge_cropped"] <- image_cropped
 
 
     # if(image_format == "czi"){

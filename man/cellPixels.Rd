@@ -57,6 +57,10 @@ where found cells are disregarded)}
 \item{add_scale_bar}{A logic (add scale bar to all images that are saved
 if true)}
 
+\item{thresh_w_h_nuc}{A number (right now, both thresh_w_h_nuc and
+thresh_offset must be supplied even if only one of them should be changed
+manually)}
+
 \item{metadata_file}{A character (file with meta data if tifs are used)}
 
 \item{normalize_nuclei_layer}{A boolean (state whether nucleus layer should be normalized)}
