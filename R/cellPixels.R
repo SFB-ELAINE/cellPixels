@@ -1315,7 +1315,7 @@ cellPixels <- function(input_dir = NULL,
     df_results[i, "mean_cluster_size"] <- mean_cluster_size
     df_results[i, "median_cluster_size"] <- median_cluster_size
 
-    df_results[i, "iamge_cropped"] <- image_cropped
+    df_results[i, "image_cropped"] <- image_cropped
 
 
     # if(image_format == "czi"){
