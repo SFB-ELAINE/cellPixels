@@ -978,18 +978,30 @@ cellPixels <- function(input_dir = NULL,
       pmask <- EBImage::fillHull(pmask)
       #display(pmask)
 
-      # Combine nmask and pmask and count the resulting nuclei containing
-      # the proteins we are looking for
 
-      n_p_mask <- nmask*pmask
+      # Combine nmask_watershed and pmask and count the resulting nuclei containing
+      # the proteins we are looking for
+      n_p_mask <- nmask_watershed*pmask
       #display(n_p_mask)
+
+      # remove objects that are smaller than 0.1*min_nuc_size
+      table_npmask <- table(n_p_mask)
+      to_be_removed <- as.integer(names(which(table_npmask < 0.1*nuc_min_size)))
+
+      n_p_mask[n_p_mask %in% to_be_removed] <- 0
+      # display(n_p_mask)
 
       # Count the nuclei containing the proteins
-      n_p_mask <- EBImage::bwlabel(n_p_mask)
+      positive_nuclei <- as.numeric(names(table(n_p_mask)))
+      positive_nuclei <- positive_nuclei[positive_nuclei != 0]
+      positive_nuclei <- sort(df_nmask_watershed$newNucNo[match(positive_nuclei, df_nmask_watershed$NucNo)])
+      # print(positive_nuclei)
+      # n_p_mask <- EBImage::bwlabel(n_p_mask)
       #display(n_p_mask)
-
       # Count number of cells
-      nuc_with_proteins_No <- max(n_p_mask)
+      # nuc_with_proteins_No <- max(n_p_mask)
+
+      nuc_with_proteins_No <- length(positive_nuclei)
 
       # Add border of nuclei with proteins and save file
       Image_nuclei_numbers_proteins <- Image_nuclei_numbers
@@ -1000,6 +1012,7 @@ cellPixels <- function(input_dir = NULL,
         tgt = Image_nuclei_numbers_proteins,
         opac = c(1,0.5),
         col=c('#D7FE14','#D7FE14'))
+      display(Image_nuclei_numbers_proteins)
 
       # Display the number of nuclei with proteins
       print(paste("Number of nuclei that contain other colored proteins: ",
@@ -1060,42 +1073,60 @@ cellPixels <- function(input_dir = NULL,
       #display(cytosolmask)
 
       # Keep only those cell bodies that contain a nucleus
-      cytosolmask <- EBImage::bwlabel(cytosolmask)
-      no_of_cytosols <- max(cytosolmask)
+      # cytosolmask <- EBImage::bwlabel(cytosolmask)
+      # no_of_cytosols <- max(cytosolmask)
 
       # Go through every stained cytosol and check for nucleus
-      for(j in 1:no_of_cytosols){
-        collocation_found <- max((cytosolmask==j)*nmask)
-        if(collocation_found == 0){
-          cytosolmask[cytosolmask==j] <- 0
-        }
-        rm(j)
-      }
+      n_c_mask <- cytosolmask * nmask_watershed
 
-      cytosolmask <- EBImage::bwlabel(cytosolmask)
-      no_of_cytosols <- max(cytosolmask)
+      # remove objects that are smaller than 0.1*min_nuc_size
+      table_ncmask <- table(n_c_mask)
+      to_be_removed <- as.integer(names(which(table_ncmask < 0.1*nuc_min_size)))
+
+      n_c_mask[n_c_mask %in% to_be_removed] <- 0
+      # display(n_c_mask)
+
+      # Count the cells containing the proteins
+      positive_cells <- as.numeric(names(table(n_c_mask)))
+      positive_cells <- positive_cells[positive_cells != 0]
+      positive_cells <- sort(df_nmask_watershed$newNucNo[match(positive_cells, df_nmask_watershed$NucNo)])
+      # print(positive_cells)
+      # n_p_mask <- EBImage::bwlabel(n_p_mask)
+
+      cell_with_proteins_No <- length(positive_cells)
+
+      # for(j in 1:no_of_cytosols){
+      #   collocation_found <- max((cytosolmask==j)*nmask)
+      #   if(collocation_found == 0){
+      #     cytosolmask[cytosolmask==j] <- 0
+      #   }
+      #   rm(j)
+      # }
+
+      # cytosolmask <- EBImage::bwlabel(cytosolmask)
+      # no_of_cytosols <- max(cytosolmask)
 
       # Combine nmask and cytosolmask and count the resulting cell bodies
       # (nuclei that are within the stained proteins in the cytosol)
-      n_c_mask <- nmask_watershed*(!cytosolmask==0)
+      # n_c_mask <- nmask_watershed*(!cytosolmask==0)
       #display(n_c_mask)
 
-      table_n_c_mask <- table(n_c_mask)
+      # table_n_c_mask <- table(n_c_mask)
 
       # Count number of cells containing staining for protein
-      cell_with_proteins_No <- length(names(table_n_c_mask))-1
+      # cell_with_proteins_No <- length(names(table_n_c_mask))-1
       #display(n_c_mask)
 
 
       # remove objects that are smaller than min_nuc_size
-      to_be_removed <- as.integer(names(which(table_n_c_mask < nuc_min_size)))
-      if(length(to_be_removed) > 0){
-        for(j in 1:length(to_be_removed)){
-          EBImage::imageData(n_c_mask)[
-            EBImage::imageData(n_c_mask) == to_be_removed[j]] <- 0
-        }
-        rm(j)
-      }
+      # to_be_removed <- as.integer(names(which(table_n_c_mask < nuc_min_size)))
+      # if(length(to_be_removed) > 0){
+      #   for(j in 1:length(to_be_removed)){
+      #     EBImage::imageData(n_c_mask)[
+      #       EBImage::imageData(n_c_mask) == to_be_removed[j]] <- 0
+      #   }
+      #   rm(j)
+      # }
 
       # Add border of cytosols with proteins and save file
       Image_cytosol_numbers_proteins <- Image_nuclei_numbers
