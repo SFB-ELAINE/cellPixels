@@ -27,6 +27,11 @@
 #' @param thresh_w_h_nuc A number (right now, both thresh_w_h_nuc and
 #' thresh_offset must be supplied even if only one of them should be changed
 #' manually)
+#' @param thresh_offset A number (threshold for finding nuclei)
+#' @param thresh_offset_protein_in_nucleus A number (threshold for
+#' determining "positive" cells containing a certain protein in nucleus area)
+#' @param thresh_offset_protein_in_cytosol A number (threshold for
+#' determining "positive" cells containing a certain protein in cytosol area)
 #' @param metadata_file A character (file with meta data if tifs are used)
 #' @param normalize_nuclei_layer A boolean (state whether nucleus layer should be normalized)
 #' @param magnification_objective A number (magnification of objective if not given in metadata or if metadata is wrong)
@@ -44,6 +49,8 @@ cellPixels <- function(input_dir = NULL,
                        add_scale_bar = FALSE,
                        thresh_w_h_nuc = NULL,
                        thresh_offset = NULL,
+                       thresh_offset_protein_in_nucleus = NULL,
+                       thresh_offset_protein_in_cytosol = NULL,
                        blur_sigma = NULL,
                        use_histogram_equalized = FALSE,
                        metadata_file = NULL,
@@ -952,23 +959,23 @@ cellPixels <- function(input_dir = NULL,
 
 
       # Mask the proteins within the nucleus
-      if(is.null(thresh_w_h_nuc) || is.null(thresh_offset)){
+      if(is.null(thresh_w_h_nuc) || is.null(thresh_offset_protein_in_nucleus)){
 
         if(magnification < 20){
           # Smaller moving rectangle if the objective magnification is e.g. 10x
-          pmask <- EBImage::thresh(Image_protein_in_nuc, w=8, h=8, offset=0.01)
+          pmask <- EBImage::thresh(Image_protein_in_nuc, w=8, h=8, offset=0.2)
         }else if(magnification < 40){ # Magnification of objective could be 20
           # Smaller moving rectangle if the objective magnification is e.g. 20x
-          pmask <- EBImage::thresh(Image_protein_in_nuc, w=15, h=15, offset=0.01)
+          pmask <- EBImage::thresh(Image_protein_in_nuc, w=15, h=15, offset=0.2)
         }else if(magnification < 60){
           # Objective magnification of 40x
-          pmask <- EBImage::thresh(Image_protein_in_nuc, w=30, h=30, offset=0.01)
+          pmask <- EBImage::thresh(Image_protein_in_nuc, w=30, h=30, offset=0.2)
         }else{
           # Objective magnification of 63x
-          pmask <- EBImage::thresh(Image_protein_in_nuc, w=500, h=500, offset=0.03)
+          pmask <- EBImage::thresh(Image_protein_in_nuc, w=500, h=500, offset=0.2)
         }
       }else{
-        pmask <- EBImage::thresh(Image_protein_in_nuc, w=thresh_w_h_nuc, h=thresh_w_h_nuc, offset=thresh_offset)
+        pmask <- EBImage::thresh(Image_protein_in_nuc, w=thresh_w_h_nuc, h=thresh_w_h_nuc, offset=thresh_offset_protein_in_nucleus)
       }
       #display(pmask)
 
@@ -1045,7 +1052,7 @@ cellPixels <- function(input_dir = NULL,
         Image_protein_in_cytosol <- EBImage::gblur(Image_protein_in_cytosol, sigma = 5)
       }
 
-      #display(Image_protein_in_nuc)
+      #display(Image_protein_in_cytosol)
 
       # Mask the proteins within the cytosol
       # if(grepl(pattern = "_20x_", file_names[i])){
@@ -1055,13 +1062,20 @@ cellPixels <- function(input_dir = NULL,
       #   cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=200, h=200, offset=0.01)
       # }
 
-      if(magnification < 20){
-        cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=50, h=50, offset=0.01)
-      }else if(magnification < 40){
-        # Smaller moving rectangle if the magnification is 20x (instead of 40x)
-        cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=100, h=100, offset=0.01)
+      if(is.null(thresh_w_h_nuc) || is.null(thresh_offset_protein_in_cytosol)){
+        if(magnification < 20){
+          cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=50, h=50, offset=0.2)
+        }else if(magnification < 40){
+          # Smaller moving rectangle if the magnification is 20x (instead of 40x)
+          cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=100, h=100, offset=0.2)
+        }else{
+          cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=200, h=200, offset=0.2)
+        }
       }else{
-        cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=200, h=200, offset=0.01)
+        cytosolmask <- EBImage::thresh(Image_protein_in_cytosol,
+                                       w=thresh_w_h_nuc,
+                                       h=thresh_w_h_nuc,
+                                       offset=thresh_offset_protein_in_cytosol)
       }
 
       #display(cytosolmask)
