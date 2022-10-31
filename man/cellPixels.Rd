@@ -20,6 +20,8 @@ cellPixels(
   add_scale_bar = FALSE,
   thresh_w_h_nuc = NULL,
   thresh_offset = NULL,
+  thresh_offset_protein_in_nucleus = NULL,
+  thresh_offset_protein_in_cytosol = NULL,
   blur_sigma = NULL,
   use_histogram_equalized = FALSE,
   metadata_file = NULL,
@@ -60,6 +62,14 @@ if true)}
 \item{thresh_w_h_nuc}{A number (right now, both thresh_w_h_nuc and
 thresh_offset must be supplied even if only one of them should be changed
 manually)}
+
+\item{thresh_offset}{A number (threshold for finding nuclei)}
+
+\item{thresh_offset_protein_in_nucleus}{A number (threshold for
+determining "positive" cells containing a certain protein in nucleus area)}
+
+\item{thresh_offset_protein_in_cytosol}{A number (threshold for
+determining "positive" cells containing a certain protein in cytosol area)}
 
 \item{metadata_file}{A character (file with meta data if tifs are used)}
 

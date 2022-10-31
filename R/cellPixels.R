@@ -860,6 +860,8 @@ cellPixels <- function(input_dir = NULL,
 
     }
 
+    mean_nuc_size <- mean(df_nmask_watershed$Freq)
+
 
     # if(length(table_nmask_watershed[-1]) > 0){
     #   # remove 0
@@ -957,26 +959,29 @@ cellPixels <- function(input_dir = NULL,
 
       #display(Image_protein_in_nuc)
 
-
       # Mask the proteins within the nucleus
-      if(is.null(thresh_w_h_nuc) || is.null(thresh_offset_protein_in_nucleus)){
-
+      # Todo: aufteilen nach beiden Bedingungen und dann Fehlendes setzen
+      if(is.null(thresh_w_h_nuc)){
         if(magnification < 20){
-          # Smaller moving rectangle if the objective magnification is e.g. 10x
-          pmask <- EBImage::thresh(Image_protein_in_nuc, w=8, h=8, offset=0.2)
-        }else if(magnification < 40){ # Magnification of objective could be 20
-          # Smaller moving rectangle if the objective magnification is e.g. 20x
-          pmask <- EBImage::thresh(Image_protein_in_nuc, w=15, h=15, offset=0.2)
+          thresh_w_h_nuc <- 8
+        }else if(magnification < 40){
+          thresh_w_h_nuc <- 15
         }else if(magnification < 60){
-          # Objective magnification of 40x
-          pmask <- EBImage::thresh(Image_protein_in_nuc, w=30, h=30, offset=0.2)
+          thresh_w_h_nuc <- 30
         }else{
-          # Objective magnification of 63x
-          pmask <- EBImage::thresh(Image_protein_in_nuc, w=500, h=500, offset=0.2)
+          thresh_w_h_nuc <- 500
         }
-      }else{
-        pmask <- EBImage::thresh(Image_protein_in_nuc, w=thresh_w_h_nuc, h=thresh_w_h_nuc, offset=thresh_offset_protein_in_nucleus)
       }
+
+      if(is.null(thresh_offset_protein_in_nucleus)){
+        thresh_offset_protein_in_nucleus <- mean(Image_protein_in_nuc)+0.1
+      }
+
+      pmask <- EBImage::thresh(Image_protein_in_nuc,
+                               w=thresh_w_h_nuc,
+                               h=thresh_w_h_nuc,
+                               offset=thresh_offset_protein_in_nucleus)
+
       #display(pmask)
 
       # Morphological opening to remove objects smaller than the structuring element
@@ -993,6 +998,7 @@ cellPixels <- function(input_dir = NULL,
 
       # remove objects that are smaller than 0.1*min_nuc_size
       table_npmask <- table(n_p_mask)
+      # to_be_removed <- as.integer(names(which(table_npmask < 0.05*mean_nuc_size)))
       to_be_removed <- as.integer(names(which(table_npmask < 0.1*nuc_min_size)))
 
       n_p_mask[n_p_mask %in% to_be_removed] <- 0
@@ -1019,7 +1025,7 @@ cellPixels <- function(input_dir = NULL,
         tgt = Image_nuclei_numbers_proteins,
         opac = c(1,0.5),
         col=c('#D7FE14','#D7FE14'))
-      display(Image_nuclei_numbers_proteins)
+      # display(Image_nuclei_numbers_proteins)
 
       # Display the number of nuclei with proteins
       print(paste("Number of nuclei that contain other colored proteins: ",
@@ -1062,14 +1068,16 @@ cellPixels <- function(input_dir = NULL,
       #   cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=200, h=200, offset=0.01)
       # }
 
+      mean_intensity <- mean(Image_protein_in_cytosol)
+
       if(is.null(thresh_w_h_nuc) || is.null(thresh_offset_protein_in_cytosol)){
         if(magnification < 20){
-          cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=50, h=50, offset=0.2)
+          cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=50, h=50, offset=2*mean_intensity) #0.2
         }else if(magnification < 40){
           # Smaller moving rectangle if the magnification is 20x (instead of 40x)
-          cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=100, h=100, offset=0.2)
+          cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=100, h=100, offset=2*mean_intensity)
         }else{
-          cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=200, h=200, offset=0.2)
+          cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=200, h=200, offset=2*mean_intensity)
         }
       }else{
         cytosolmask <- EBImage::thresh(Image_protein_in_cytosol,
@@ -1633,19 +1641,28 @@ cellPixels <- function(input_dir = NULL,
     list_of_variables <- ls()
     keep_variables <- c("df_results", "zis",
                         "bit_depth", "file_names", "image_format",
-                        "input_dir", "apotome", "apotome_section",
-                        "nucleus_color","number_of_images",
-                        "number_of_pixels_at_border_to_disregard",
-                        "number_size_factor", "output_dir",
-                        "protein_in_cytosol_color",
+                        "input_dir",
+                        "apotome",
+                        "apotome_section",
+                        "nucleus_color",
                         "protein_in_nuc_color",
+                        "protein_in_cytosol_color",
                         "protein_in_membrane_color",
-                        "add_scale_bar", "thresh_w_h_nuc",
-                        "thresh_offset", "blur_sigma",
+                        "number_size_factor",
+                        "bit_depth",
+                        "number_of_pixels_at_border_to_disregard",
+                        "add_scale_bar",
+                        "thresh_w_h_nuc",
+                        "thresh_offset",
+                        "thresh_offset_protein_in_nucleus",
+                        "thresh_offset_protein_in_cytosol",
+                        "blur_sigma",
                         "use_histogram_equalized",
                         "metadata_file",
                         "normalize_nuclei_layer",
                         "magnification_objective",
+                        "output_dir",
+                        "number_of_images",
                         ".old.options")
 
     remove_variables <- list_of_variables[
