@@ -996,6 +996,18 @@ cellPixels <- function(input_dir = NULL,
       n_p_mask <- nmask_watershed*pmask
       #display(n_p_mask)
 
+      # remove objects that are smaller than 0.1*nuc_size
+      table_npmask <- table(n_p_mask)
+      # table_nmask_watershed
+      to_be_removed <- as.integer(names(
+        which(table_npmask < 0.01 * table_nmask[match(names(table_npmask), names(table_nmask))])))
+      if(length(to_be_removed) > 0){
+        n_p_mask[n_p_mask %in% to_be_removed] <- 0
+      }
+
+      # display(n_p_mask)
+
+
       # Combine possibly multiple positive nuclei
       if(magnification < 20){
         n_p_mask_watershed <-  EBImage::watershed(
@@ -1018,12 +1030,9 @@ cellPixels <- function(input_dir = NULL,
       # table_npmask <- table(n_p_mask)
       table_npmask <- table(n_p_mask_watershed)
 
-      # to_be_removed <- as.integer(names(which(table_npmask < 0.05*mean_nuc_size)))
-      to_be_removed <- as.integer(names(which(table_npmask < 0.1*nuc_min_size)))
 
-      # n_p_mask[n_p_mask %in% to_be_removed] <- 0
-      n_p_mask_watershed[n_p_mask_watershed %in% to_be_removed] <- 0
-      # display(n_p_mask)
+
+
 
       # Count the nuclei containing the proteins
       # positive_nuclei <- as.numeric(names(table(n_p_mask)))
@@ -1049,9 +1058,10 @@ cellPixels <- function(input_dir = NULL,
       EBImage::colorMode(Image_nuclei_numbers_proteins) <- "color"
 
       Image_nuclei_numbers_proteins <- EBImage::paintObjects(
-        x = n_p_mask,
+        # x = n_p_mask,
+        x = n_p_mask_watershed,
         tgt = Image_nuclei_numbers_proteins,
-        opac = c(1,0.5),
+        opac = c(1,0.8),
         col=c('#D7FE14','#D7FE14'))
       # display(Image_nuclei_numbers_proteins)
 
