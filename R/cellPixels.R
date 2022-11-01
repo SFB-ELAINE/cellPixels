@@ -726,7 +726,7 @@ cellPixels <- function(input_dir = NULL,
       nmask_watershed <-  EBImage::watershed(
         EBImage::distmap(nmask), tolerance = 0.1, ext = 6) # used to be 045, 9 | 0.3, 3
 
-      display(colorLabels(EBImage::watershed(EBImage::distmap(nmask), tolerance = 0.1, ext = 6)), all=TRUE)
+      # display(colorLabels(EBImage::watershed(EBImage::distmap(nmask), tolerance = 0.1, ext = 6)), all=TRUE)
     }
 
 
@@ -963,11 +963,11 @@ cellPixels <- function(input_dir = NULL,
       # Todo: aufteilen nach beiden Bedingungen und dann Fehlendes setzen
       if(is.null(thresh_w_h_nuc)){
         if(magnification < 20){
-          thresh_w_h_nuc <- 8
-        }else if(magnification < 40){
           thresh_w_h_nuc <- 15
-        }else if(magnification < 60){
+        }else if(magnification < 40){
           thresh_w_h_nuc <- 30
+        }else if(magnification < 60){
+          thresh_w_h_nuc <- 60
         }else{
           thresh_w_h_nuc <- 500
         }
@@ -996,18 +996,46 @@ cellPixels <- function(input_dir = NULL,
       n_p_mask <- nmask_watershed*pmask
       #display(n_p_mask)
 
+      # Combine possibly multiple positive nuclei
+      if(magnification < 20){
+        n_p_mask_watershed <-  EBImage::watershed(
+          EBImage::distmap(n_p_mask), tolerance = 0.45, ext = 3) # it was tolerance = 0.5
+      }else if(magnification < 40){
+        n_p_mask_watershed <-  EBImage::watershed(
+          EBImage::distmap(n_p_mask), tolerance = 0.1, ext = 6) #sqrt(15), see thresh(Image_nuclei...
+      }else if(magnification < 60){
+        n_p_mask_watershed <-  EBImage::watershed(
+          EBImage::distmap(n_p_mask), tolerance = 0.1, ext = 6) # used to be 045, 9 | 0.3, 3
+      }else{
+        n_p_mask_watershed <-  EBImage::watershed(
+          EBImage::distmap(n_p_mask), tolerance = 0.1, ext = 6) # used to be 045, 9 | 0.3, 3
+      }
+
+      # display(colorLabels(n_p_mask_watershed))
+
+
       # remove objects that are smaller than 0.1*min_nuc_size
-      table_npmask <- table(n_p_mask)
+      # table_npmask <- table(n_p_mask)
+      table_npmask <- table(n_p_mask_watershed)
+
       # to_be_removed <- as.integer(names(which(table_npmask < 0.05*mean_nuc_size)))
       to_be_removed <- as.integer(names(which(table_npmask < 0.1*nuc_min_size)))
 
-      n_p_mask[n_p_mask %in% to_be_removed] <- 0
+      # n_p_mask[n_p_mask %in% to_be_removed] <- 0
+      n_p_mask_watershed[n_p_mask_watershed %in% to_be_removed] <- 0
       # display(n_p_mask)
 
       # Count the nuclei containing the proteins
-      positive_nuclei <- as.numeric(names(table(n_p_mask)))
+      # positive_nuclei <- as.numeric(names(table(n_p_mask)))
+      positive_nuclei <- as.numeric(names(table(n_p_mask_watershed)))
       positive_nuclei <- positive_nuclei[positive_nuclei != 0]
-      positive_nuclei <- sort(df_nmask_watershed$newNucNo[match(positive_nuclei, df_nmask_watershed$NucNo)])
+      # positive_nuclei <- sort(df_nmask_watershed$newNucNo[match(positive_nuclei, df_nmask_watershed$NucNo)])
+
+      # Attention: We have a new list now. The numbers do not correspondend
+      # to the actual nuclei numbers
+      # (We could no map both the nuclei and the positive nuclei map and
+      # only keep the number of the nuclei with the largest coverage.)
+
       # print(positive_nuclei)
       # n_p_mask <- EBImage::bwlabel(n_p_mask)
       #display(n_p_mask)
