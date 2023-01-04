@@ -10,6 +10,7 @@
 #' @param apotome A boolean (TRUE if Apotome was used)
 #' @param apotome_section A boolean (TRUE is sectioned image shall be used)
 #' @param nucleus_color A character (color (layer) of nuclei)
+#' @param min_nucleus_size A number (minimum size in pixels of nuclei to be kept)
 #' @param protein_in_nuc_color A character (color (layer) of protein
 #' expected in nucleus)
 #' @param protein_in_cytosol_color A character (color (layer) of protein
@@ -40,6 +41,7 @@ cellPixels <- function(input_dir = NULL,
                        apotome = FALSE,
                        apotome_section = FALSE,
                        nucleus_color = "blue",
+                       min_nucleus_size = NULL,
                        protein_in_nuc_color = "none",
                        protein_in_cytosol_color = "none",
                        protein_in_membrane_color = "none",
@@ -776,7 +778,12 @@ cellPixels <- function(input_dir = NULL,
     # barplot(table(nmask)[-1])
 
     table_nmask <- table(nmask)
-    nuc_min_size <- 0.2*stats::median(table_nmask[-1])
+    if(is.null(min_nucleus_size)){
+      nuc_min_size <- 0.2*stats::median(table_nmask[-1])
+    }else{
+      nuc_min_size <- min_nucleus_size
+    }
+
 
     # remove objects that are smaller than min_nuc_size
     to_be_removed <- as.integer(names(which(table_nmask < nuc_min_size)))
@@ -1683,6 +1690,7 @@ cellPixels <- function(input_dir = NULL,
                         "apotome",
                         "apotome_section",
                         "nucleus_color",
+                        "min_nucleus_size",
                         "protein_in_nuc_color",
                         "protein_in_cytosol_color",
                         "protein_in_membrane_color",

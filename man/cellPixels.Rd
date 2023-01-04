@@ -11,6 +11,7 @@ cellPixels(
   apotome = FALSE,
   apotome_section = FALSE,
   nucleus_color = "blue",
+  min_nucleus_size = NULL,
   protein_in_nuc_color = "none",
   protein_in_cytosol_color = "none",
   protein_in_membrane_color = "none",
@@ -37,6 +38,8 @@ cellPixels(
 \item{apotome_section}{A boolean (TRUE is sectioned image shall be used)}
 
 \item{nucleus_color}{A character (color (layer) of nuclei)}
+
+\item{min_nucleus_size}{A number (minimum size in pixels of nuclei to be kept)}
 
 \item{protein_in_nuc_color}{A character (color (layer) of protein
 expected in nucleus)}
