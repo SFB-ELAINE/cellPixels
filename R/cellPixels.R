@@ -25,10 +25,14 @@
 #' where found cells are disregarded)
 #' @param add_scale_bar A logic (add scale bar to all images that are saved
 #' if true)
-#' @param thresh_w_h_nuc A number (right now, both thresh_w_h_nuc and
-#' thresh_offset must be supplied even if only one of them should be changed
-#' manually)
-#' @param thresh_offset A number (threshold for finding nuclei)
+#' @param thresh_w_h_nucleus A number (width and height of moving rectangle for
+#' nucleus detection)
+#' @param thresh_w_h_cytosol A number (width and height of moving rectangle for
+#' cytosol detection)
+#' @param thresh_w_h_protein_in_nucleus A number (width and height of moving
+#' rectangle for protein in nucleus detection (different from detecting
+#' nuclei themselves))
+#' @param thresh_offset_nucleus A number (threshold for finding nuclei)
 #' @param thresh_offset_protein_in_nucleus A number (threshold for
 #' determining "positive" cells containing a certain protein in nucleus area)
 #' @param thresh_offset_protein_in_cytosol A number (threshold for
@@ -49,8 +53,9 @@ cellPixels <- function(input_dir = NULL,
                        bit_depth = NULL,
                        number_of_pixels_at_border_to_disregard = 3,
                        add_scale_bar = FALSE,
-                       thresh_w_h_nuc = NULL,
-                       thresh_offset = NULL,
+                       thresh_w_h_nucleus = NULL,
+                       thresh_w_h_cytosol = NULL,
+                       thresh_offset_nucleus = NULL,
                        thresh_offset_protein_in_nucleus = NULL,
                        thresh_offset_protein_in_cytosol = NULL,
                        blur_sigma = NULL,
@@ -645,24 +650,28 @@ cellPixels <- function(input_dir = NULL,
 
 
     # Mask the nuclei
-    if(is.null(thresh_w_h_nuc) || is.null(thresh_offset)){
-
+    if(is.null(thresh_w_h_nucleus)){
       if(magnification < 20){
-        # Smaller moving rectangle if the objective magnification is e.g. 10x
-        nmask <- EBImage::thresh(Image_nuclei, w=8, h=8, offset=0.01)
-      }else if(magnification < 40){ # Magnification of objective could be 20
-        # Smaller moving rectangle if the objective magnification is e.g. 20x
-        nmask <- EBImage::thresh(Image_nuclei, w=15, h=15, offset=0.01)
+        thresh_w_h_nucleus <- 8
+      }else if(magnification < 40){
+        thresh_w_h_nucleus <- 15
       }else if(magnification < 60){
-        # Objective magnification of 40x
-        nmask <- EBImage::thresh(Image_nuclei, w=30, h=30, offset=0.01)
+        thresh_w_h_nucleus <- 30
       }else{
-        # Objective magnification of 63x
-        nmask <- EBImage::thresh(Image_nuclei, w=500, h=500, offset=0.03)
+        thresh_w_h_nucleus <- 500
       }
-    }else{
-      nmask <- EBImage::thresh(Image_nuclei, w=thresh_w_h_nuc, h=thresh_w_h_nuc, offset=thresh_offset)
     }
+
+    if(is.null(thresh_offset_nucleus)){
+      if(magnification < 60){
+        thresh_offset_nucleus <- 0.01
+      }else{
+        thresh_offset_nucleus <- 0.03
+      }
+    }
+
+    nmask <- EBImage::thresh(Image_nuclei, w=thresh_w_h_nucleus,
+                             h=thresh_w_h_nucleus, offset=thresh_offset_nucleus)
     #display(nmask)
 
 
@@ -967,16 +976,15 @@ cellPixels <- function(input_dir = NULL,
       #display(Image_protein_in_nuc)
 
       # Mask the proteins within the nucleus
-      # Todo: aufteilen nach beiden Bedingungen und dann Fehlendes setzen
-      if(is.null(thresh_w_h_nuc)){
+      if(is.null(thresh_w_h_protein_in_nucleus)){
         if(magnification < 20){
-          thresh_w_h_nuc <- 15
+          thresh_w_h_protein_in_nucleus <- 15
         }else if(magnification < 40){
-          thresh_w_h_nuc <- 30
+          thresh_w_h_protein_in_nucleus <- 30
         }else if(magnification < 60){
-          thresh_w_h_nuc <- 60
+          thresh_w_h_protein_in_nucleus <- 60
         }else{
-          thresh_w_h_nuc <- 500
+          thresh_w_h_protein_in_nucleus <- 500
         }
       }
 
@@ -985,8 +993,8 @@ cellPixels <- function(input_dir = NULL,
       }
 
       pmask <- EBImage::thresh(Image_protein_in_nuc,
-                               w=thresh_w_h_nuc,
-                               h=thresh_w_h_nuc,
+                               w=thresh_w_h_protein_in_nucleus,
+                               h=thresh_w_h_protein_in_nucleus,
                                offset=thresh_offset_protein_in_nucleus)
 
       #display(pmask)
@@ -1115,7 +1123,20 @@ cellPixels <- function(input_dir = NULL,
 
       mean_intensity <- mean(Image_protein_in_cytosol)
 
-      if(is.null(thresh_w_h_nuc) || is.null(thresh_offset_protein_in_cytosol)){
+      if(is.null(thresh_w_h_cytosol)){
+        if(magnification < 20){
+          thresh_w_h_cytosol <- 50
+        }else if(magnification < 40){
+          thresh_w_h_cytosol <- 100
+        }else if(magnification < 60){
+          thresh_w_h_cytosol <- 200
+        }else{
+          thresh_w_h_cytosol <- 500
+        }
+      }
+
+
+      if(is.null(thresh_offset_protein_in_cytosol)){
         if(magnification < 20){
           cytosolmask <- EBImage::thresh(Image_protein_in_cytosol, w=50, h=50, offset=2*mean_intensity) #0.2
         }else if(magnification < 40){
@@ -1126,8 +1147,8 @@ cellPixels <- function(input_dir = NULL,
         }
       }else{
         cytosolmask <- EBImage::thresh(Image_protein_in_cytosol,
-                                       w=thresh_w_h_nuc,
-                                       h=thresh_w_h_nuc,
+                                       w=thresh_w_h_cytosol,
+                                       h=thresh_w_h_cytosol,
                                        offset=thresh_offset_protein_in_cytosol)
       }
 
@@ -1698,8 +1719,10 @@ cellPixels <- function(input_dir = NULL,
                         "bit_depth",
                         "number_of_pixels_at_border_to_disregard",
                         "add_scale_bar",
-                        "thresh_w_h_nuc",
-                        "thresh_offset",
+                        "thresh_w_h_nucleus",
+                        "thresh_w_h_cytosol",
+                        "thresh_w_h_protein_in_nucleus",
+                        "thresh_offset_nucleus",
                         "thresh_offset_protein_in_nucleus",
                         "thresh_offset_protein_in_cytosol",
                         "blur_sigma",
