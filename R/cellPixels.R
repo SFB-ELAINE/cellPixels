@@ -11,6 +11,7 @@
 #' @param apotome_section A boolean (TRUE is sectioned image shall be used)
 #' @param nucleus_color A character (color (layer) of nuclei)
 #' @param min_nucleus_size A number (minimum size in pixels of nuclei to be kept)
+#' @param min_cytosol_size A number (minimum size in pixels of cytosol to be kept)
 #' @param protein_in_nuc_color A character (color (layer) of protein
 #' expected in nucleus)
 #' @param protein_in_cytosol_color A character (color (layer) of protein
@@ -46,6 +47,7 @@ cellPixels <- function(input_dir = NULL,
                        apotome_section = FALSE,
                        nucleus_color = "blue",
                        min_nucleus_size = NULL,
+                       min_cytosol_size = NULL,
                        protein_in_nuc_color = "none",
                        protein_in_cytosol_color = "none",
                        protein_in_membrane_color = "none",
@@ -788,14 +790,12 @@ cellPixels <- function(input_dir = NULL,
 
     table_nmask <- table(nmask)
     if(is.null(min_nucleus_size)){
-      nuc_min_size <- 0.2*stats::median(table_nmask[-1])
-    }else{
-      nuc_min_size <- min_nucleus_size
+      min_nucleus_size <- 0.2*stats::median(table_nmask[-1])
     }
 
 
     # remove objects that are smaller than min_nuc_size
-    to_be_removed <- as.integer(names(which(table_nmask < nuc_min_size)))
+    to_be_removed <- as.integer(names(which(table_nmask < min_nucleus_size)))
     if(length(to_be_removed) > 0){
       for(j in 1:length(to_be_removed)){
         EBImage::imageData(nmask)[
@@ -1011,7 +1011,7 @@ cellPixels <- function(input_dir = NULL,
       n_p_mask <- nmask_watershed*pmask
       #display(n_p_mask)
 
-      # remove objects that are smaller than 0.1*nuc_size
+      # remove objects that are smaller than 0.01*size of respective nucleus
       table_npmask <- table(n_p_mask)
       # table_nmask_watershed
       to_be_removed <- as.integer(names(
@@ -1160,16 +1160,23 @@ cellPixels <- function(input_dir = NULL,
       cytosolmask <- EBImage::fillHull(cytosolmask)
       #display(cytosolmask)
 
-      # Keep only those cell bodies that contain a nucleus
-      # cytosolmask <- EBImage::bwlabel(cytosolmask)
-      # no_of_cytosols <- max(cytosolmask)
+      # Delete small cytosol objects
+      cytosolmask <- EBImage::bwlabel(cytosolmask)
+      table_cytosolmask <- table(cytosolmask)
+      if(is.null(min_cytosol_size)){
+        to_be_removed <- as.integer(names(which(table_cytosolmask < 0.1*min_nucleus_size)))
+      }else{
+        to_be_removed <- as.integer(names(which(table_cytosolmask < min_cytosol_size)))
+      }
+      cytosolmask[cytosolmask %in% to_be_removed] <- 0
 
-      # Go through every stained cytosol and check for nucleus
+
+      # Go through every stained cytosol and keep those that contain a nucleus
       n_c_mask <- cytosolmask * nmask_watershed
 
-      # remove objects that are smaller than 0.1*min_nuc_size
+      # Remove positive cells that are smaller than 0.1*min_nuc_size
       table_ncmask <- table(n_c_mask)
-      to_be_removed <- as.integer(names(which(table_ncmask < 0.1*nuc_min_size)))
+      to_be_removed <- as.integer(names(which(table_ncmask < 0.1*min_nucleus_size)))
 
       n_c_mask[n_c_mask %in% to_be_removed] <- 0
       # display(n_c_mask)
@@ -1207,7 +1214,7 @@ cellPixels <- function(input_dir = NULL,
 
 
       # remove objects that are smaller than min_nuc_size
-      # to_be_removed <- as.integer(names(which(table_n_c_mask < nuc_min_size)))
+      # to_be_removed <- as.integer(names(which(table_n_c_mask < min_nucleus_size)))
       # if(length(to_be_removed) > 0){
       #   for(j in 1:length(to_be_removed)){
       #     EBImage::imageData(n_c_mask)[
@@ -1336,10 +1343,10 @@ cellPixels <- function(input_dir = NULL,
       # barplot(table(nmask)[-1])
 
       # table_nmask <- table(nmask)
-      # nuc_min_size <- 0.1*stats::median(table_nmask[-1])
+      # min_nucleus_size <- 0.1*stats::median(table_nmask[-1])
       #
       # # remove objects that are smaller than min_nuc_size
-      # to_be_removed <- as.integer(names(which(table_nmask < nuc_min_size)))
+      # to_be_removed <- as.integer(names(which(table_nmask < min_nucleus_size)))
       # if(length(to_be_removed) > 0){
       #   for(j in 1:length(to_be_removed)){
       #     EBImage::imageData(nmask)[
@@ -1712,6 +1719,7 @@ cellPixels <- function(input_dir = NULL,
                         "apotome_section",
                         "nucleus_color",
                         "min_nucleus_size",
+                        "min_cytosol_size",
                         "protein_in_nuc_color",
                         "protein_in_cytosol_color",
                         "protein_in_membrane_color",
