@@ -12,7 +12,7 @@
 #' @param nucleus_color A character (color (layer) of nuclei)
 #' @param min_nucleus_size A number (minimum size in pixels of nuclei to be kept)
 #' @param min_cytosol_size A number (minimum size in pixels of cytosol to be kept)
-#' @param protein_in_nuc_color A character (color (layer) of protein
+#' @param protein_in_nucleus_color A character (color (layer) of protein
 #' expected in nucleus)
 #' @param protein_in_cytosol_color A character (color (layer) of protein
 #' expected in cytosol)
@@ -48,7 +48,7 @@ cellPixels <- function(input_dir = NULL,
                        nucleus_color = "blue",
                        min_nucleus_size = NULL,
                        min_cytosol_size = NULL,
-                       protein_in_nuc_color = "none",
+                       protein_in_nucleus_color = "none",
                        protein_in_cytosol_color = "none",
                        protein_in_membrane_color = "none",
                        number_size_factor = 0.2,
@@ -947,11 +947,11 @@ cellPixels <- function(input_dir = NULL,
 
     # Count the number of nuclei that contain a second colored protein  ----
 
-    if(!is.null(protein_in_nuc_color) & protein_in_nuc_color != "none"){
+    if(!is.null(protein_in_nucleus_color) & protein_in_nucleus_color != "none"){
 
       # Save only color layer of the second protein colored
       image_protein_in_nuc <- getLayer(image = image_loaded,
-                                       layer = protein_in_nuc_color)
+                                       layer = protein_in_nucleus_color)
 
       if(use_histogram_equalized){
         image_protein_in_nuc <- EBImage::clahe(x = image_protein_in_nuc, nx = 4)
@@ -1398,8 +1398,8 @@ cellPixels <- function(input_dir = NULL,
     df_results[i,"dimension_x"] <- dim(image_loaded)[2]
     df_results[i,"dimension_y"] <- dim(image_loaded)[1]
     df_results[i,"number_of_nuclei"] <- nucNo
-    if(!is.null(protein_in_nuc_color) & protein_in_nuc_color != "none"){
-      df_results[i,"color_of_second_protein_in_nuclei"] <- protein_in_nuc_color
+    if(!is.null(protein_in_nucleus_color) & protein_in_nucleus_color != "none"){
+      df_results[i,"color_of_second_protein_in_nuclei"] <- protein_in_nucleus_color
       df_results[i,"number_of_nuclei_with_second_protein"] <- nuc_with_proteins_No
     }
 
@@ -1596,7 +1596,7 @@ cellPixels <- function(input_dir = NULL,
         image = Image_nuclei_numbers_proteins,
         length_per_pixel = length_per_pixel_x_in_um)
     }
-    if(!is.null(protein_in_nuc_color) & protein_in_nuc_color != "none"){
+    if(!is.null(protein_in_nucleus_color) & protein_in_nucleus_color != "none"){
       # tiff::writeTIFF(what = Image_nuclei_numbers_proteins,
       #                 where = paste(output_dir,
       #                               image_name_wo_czi,
@@ -1720,7 +1720,7 @@ cellPixels <- function(input_dir = NULL,
                         "nucleus_color",
                         "min_nucleus_size",
                         "min_cytosol_size",
-                        "protein_in_nuc_color",
+                        "protein_in_nucleus_color",
                         "protein_in_cytosol_color",
                         "protein_in_membrane_color",
                         "number_size_factor",
