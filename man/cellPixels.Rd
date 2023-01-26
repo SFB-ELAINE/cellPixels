@@ -12,15 +12,18 @@ cellPixels(
   apotome_section = FALSE,
   nucleus_color = "blue",
   min_nucleus_size = NULL,
-  protein_in_nuc_color = "none",
+  min_cytosol_size = NULL,
+  protein_in_nucleus_color = "none",
   protein_in_cytosol_color = "none",
   protein_in_membrane_color = "none",
   number_size_factor = 0.2,
   bit_depth = NULL,
   number_of_pixels_at_border_to_disregard = 3,
   add_scale_bar = FALSE,
-  thresh_w_h_nuc = NULL,
-  thresh_offset = NULL,
+  thresh_w_h_nucleus = NULL,
+  thresh_w_h_cytosol = NULL,
+  thresh_w_h_protein_in_nucleus = NULL,
+  thresh_offset_nucleus = NULL,
   thresh_offset_protein_in_nucleus = NULL,
   thresh_offset_protein_in_cytosol = NULL,
   blur_sigma = NULL,
@@ -41,7 +44,9 @@ cellPixels(
 
 \item{min_nucleus_size}{A number (minimum size in pixels of nuclei to be kept)}
 
-\item{protein_in_nuc_color}{A character (color (layer) of protein
+\item{min_cytosol_size}{A number (minimum size in pixels of cytosol to be kept)}
+
+\item{protein_in_nucleus_color}{A character (color (layer) of protein
 expected in nucleus)}
 
 \item{protein_in_cytosol_color}{A character (color (layer) of protein
@@ -62,11 +67,17 @@ where found cells are disregarded)}
 \item{add_scale_bar}{A logic (add scale bar to all images that are saved
 if true)}
 
-\item{thresh_w_h_nuc}{A number (right now, both thresh_w_h_nuc and
-thresh_offset must be supplied even if only one of them should be changed
-manually)}
+\item{thresh_w_h_nucleus}{A number (width and height of moving rectangle for
+nucleus detection)}
 
-\item{thresh_offset}{A number (threshold for finding nuclei)}
+\item{thresh_w_h_cytosol}{A number (width and height of moving rectangle for
+cytosol detection)}
+
+\item{thresh_w_h_protein_in_nucleus}{A number (width and height of moving
+rectangle for protein in nucleus detection (different from detecting
+nuclei themselves))}
+
+\item{thresh_offset_nucleus}{A number (threshold for finding nuclei)}
 
 \item{thresh_offset_protein_in_nucleus}{A number (threshold for
 determining "positive" cells containing a certain protein in nucleus area)}

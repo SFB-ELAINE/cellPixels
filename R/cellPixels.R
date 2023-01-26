@@ -133,6 +133,7 @@ cellPixels <- function(input_dir = NULL,
   dir.create(output_dir, showWarnings = FALSE)
 
   # Create empty data fram -------------------------------------------------
+
   df_results <- data.frame(
     "fileName" = file_names,
     "manual_quality_check" = rep(NA, number_of_images),
@@ -143,24 +144,27 @@ cellPixels <- function(input_dir = NULL,
     "number_of_nuclei_with_second_protein" = rep(NA, number_of_images),
     "color_of_third_protein_in_cytosol" = rep(NA, number_of_images),
     "number_of_cells_with_third_protein" = rep(NA, number_of_images),
-    "intensity_sum_red_full" = rep(NA, number_of_images),
-    "intensity_sum_green_full" = rep(NA, number_of_images),
-    "intensity_sum_blue_full" = rep(NA, number_of_images),
-    "intensity_sum_red_nucleus_region" = rep(NA, number_of_images),
-    "intensity_sum_green_nucleus_region" = rep(NA, number_of_images),
-    "intensity_sum_blue_nucleus_region" = rep(NA, number_of_images),
-    "intensity_sum_red_without_nucleus_region" = rep(NA, number_of_images),
-    "intensity_sum_green_without_nucleus_region" = rep(NA, number_of_images),
-    "intensity_sum_blue_without_nucleus_region" = rep(NA, number_of_images),
-    "intensity_sum_red_foreground" = rep(NA, number_of_images),
-    "intensity_sum_green_foreground" = rep(NA, number_of_images),
-    "intensity_sum_blue_foreground" = rep(NA, number_of_images),
-    "intensity_sum_red_foreground_without_nucleus_region" = rep(NA, number_of_images),
-    "intensity_sum_green_foreground_without_nucleus_region" = rep(NA, number_of_images),
-    "intensity_sum_blue_foreground_without_nucleus_region" = rep(NA, number_of_images),
-    "intensity_mean_red_background" = rep(NA, number_of_images),
-    "intensity_mean_green_background" = rep(NA, number_of_images),
-    "intensity_mean_blue_background" = rep(NA, number_of_images),
+    "intensity_sum_full_red" = rep(NA, number_of_images),
+    "intensity_sum_full_green" = rep(NA, number_of_images),
+    "intensity_sum_full_blue" = rep(NA, number_of_images),
+    "intensity_sum_nucleus_region_red" = rep(NA, number_of_images),
+    "intensity_sum_nucleus_region_green" = rep(NA, number_of_images),
+    "intensity_sum_nucleus_region_blue" = rep(NA, number_of_images),
+    "intensity_sum_full_without_nucleus_region_red" = rep(NA, number_of_images),
+    "intensity_sum_full_without_nucleus_region_green" = rep(NA, number_of_images),
+    "intensity_sum_full_without_nucleus_region_blue" = rep(NA, number_of_images),
+    "intensity_sum_cytosol_region_red" = rep(NA, number_of_images),
+    "intensity_sum_cytosol_region_green" = rep(NA, number_of_images),
+    "intensity_sum_cytosol_region_blue" = rep(NA, number_of_images),
+    "intensity_sum_foreground_red" = rep(NA, number_of_images),
+    "intensity_sum_foreground_green" = rep(NA, number_of_images),
+    "intensity_sum_foreground_blue" = rep(NA, number_of_images),
+    "intensity_sum_foreground_without_nucleus_region_red" = rep(NA, number_of_images),
+    "intensity_sum_foreground_without_nucleus_region_green" = rep(NA, number_of_images),
+    "intensity_sum_foreground_without_nucleus_region_blue" = rep(NA, number_of_images),
+    "intensity_mean_background_red" = rep(NA, number_of_images),
+    "intensity_mean_background_green" = rep(NA, number_of_images),
+    "intensity_mean_background_blue" = rep(NA, number_of_images),
     "number_of_total_pixels" = rep(NA, number_of_images),
     "number_of_pixels_nucleus_region" = rep(NA, number_of_images),
     "number_of_pixels_foreground" = rep(NA, number_of_images),
@@ -683,14 +687,15 @@ cellPixels <- function(input_dir = NULL,
     # Fill holes
     nmask <- EBImage::fillHull(nmask)
 
-    # Save black-and-white-image as nucleus mask
-    nucleus_mask <- nmask
+    # # Save black-and-white-image as nucleus mask -> don't use this and
+    # # use the resultnig mask instead
+    # nucleus_mask <- nmask
 
     # Number of pixels of the nucleus mask
-    number_of_pixels_nucleus_region <- sum(nucleus_mask)
+    number_of_pixels_nucleus_region <- sum(nmask)
 
     # Number of pixels of the foreground without the nucleus part
-    mask_foreground_wo_nucleus <- mask_foreground - nucleus_mask
+    mask_foreground_wo_nucleus <- mask_foreground - nmask
     mask_foreground_wo_nucleus[mask_foreground_wo_nucleus < 0] <- 0
 
     number_of_pixels_foreground_without_nucleus_region <- sum(mask_foreground_wo_nucleus)
@@ -937,12 +942,16 @@ cellPixels <- function(input_dir = NULL,
     print(paste("Number of nuclei: ", nucNo, sep=""))
 
 
+    # Save a (0/1 = black and white) mask of nuclei
+    nmask_bw <- nmask
+    nmask_bw[nmask_bw != 0] <- 1
+
     # Use the nucleus mask to leave only the nuclei part of the images
     Image_loaded <- EBImage::Image(data = image_loaded)
-    Image_nucleus_part <- Image_loaded * EBImage::toRGB(nucleus_mask)
+    Image_nucleus_part <- Image_loaded * EBImage::toRGB(nmask_bw)
 
     # Use the nucleus mask to cut out nuclei of the images
-    non_nucleus_mask <- 1-nucleus_mask
+    non_nucleus_mask <- 1-nmask_bw
     Image_non_nucleus_part <- Image_loaded * EBImage::toRGB(non_nucleus_mask)
 
 
@@ -1171,6 +1180,13 @@ cellPixels <- function(input_dir = NULL,
       }
       cytosolmask[cytosolmask %in% to_be_removed] <- 0
 
+      # Save a (0/1 = black and white) mask of cytosol
+      cytosolmask_bw <- cytosolmask
+      cytosolmask_bw[cytosolmask_bw != 0] <- 1
+
+      # Use the cytosolmask to leave only the cytosol part of the images
+      Image_loaded <- EBImage::Image(data = image_loaded)
+      Image_cytosol_part <- Image_loaded * EBImage::toRGB(cytosolmask_bw)
 
       # Go through every stained cytosol and keep those that contain a nucleus
       n_c_mask <- cytosolmask * nmask_watershed
@@ -1409,29 +1425,33 @@ cellPixels <- function(input_dir = NULL,
       df_results[i,"number_of_cells_with_third_protein"] <- cell_with_proteins_No
     }
 
-    df_results[i,"intensity_sum_red_full"] <- sum(image_loaded[,,1])
-    df_results[i,"intensity_sum_green_full"] <- sum(image_loaded[,,2])
-    df_results[i,"intensity_sum_blue_full"] <- sum(image_loaded[,,3])
+    df_results[i,"intensity_sum_full_red"] <- sum(image_loaded[,,1])
+    df_results[i,"intensity_sum_full_green"] <- sum(image_loaded[,,2])
+    df_results[i,"intensity_sum_full_blue"] <- sum(image_loaded[,,3])
 
-    df_results[i,"intensity_sum_red_nucleus_region"] <- sum(Image_nucleus_part[,,1])
-    df_results[i,"intensity_sum_green_nucleus_region"] <- sum(Image_nucleus_part[,,2])
-    df_results[i,"intensity_sum_blue_nucleus_region"] <- sum(Image_nucleus_part[,,3])
+    df_results[i,"intensity_sum_nucleus_region_red"] <- sum(Image_nucleus_part[,,1])
+    df_results[i,"intensity_sum_nucleus_region_green"] <- sum(Image_nucleus_part[,,2])
+    df_results[i,"intensity_sum_nucleus_region_blue"] <- sum(Image_nucleus_part[,,3])
 
-    df_results[i,"intensity_sum_red_without_nucleus_region"] <- sum(Image_non_nucleus_part[,,1])
-    df_results[i,"intensity_sum_green_without_nucleus_region"] <- sum(Image_non_nucleus_part[,,2])
-    df_results[i,"intensity_sum_blue_without_nucleus_region"] <- sum(Image_non_nucleus_part[,,3])
+    df_results[i,"intensity_sum_full_without_nucleus_region_red"] <- sum(Image_non_nucleus_part[,,1])
+    df_results[i,"intensity_sum_full_without_nucleus_region_green"] <- sum(Image_non_nucleus_part[,,2])
+    df_results[i,"intensity_sum_full_without_nucleus_region_blue"] <- sum(Image_non_nucleus_part[,,3])
 
-    df_results[i,"intensity_sum_red_foreground"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground))[,,1])
-    df_results[i,"intensity_sum_green_foreground"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground))[,,2])
-    df_results[i,"intensity_sum_blue_foreground"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground))[,,3])
+    df_results[i,"intensity_sum_cytosol_region_red"]   <- sum(Image_cytosol_part[,,1])
+    df_results[i,"intensity_sum_cytosol_region_green"] <- sum(Image_cytosol_part[,,2])
+    df_results[i,"intensity_sum_cytosol_region_blue"]  <- sum(Image_cytosol_part[,,3])
 
-    df_results[i,"intensity_sum_red_foreground_without_nucleus_region"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground_wo_nucleus))[,,1])
-    df_results[i,"intensity_sum_green_foreground_without_nucleus_region"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground_wo_nucleus))[,,2])
-    df_results[i,"intensity_sum_blue_foreground_without_nucleus_region"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground_wo_nucleus))[,,3])
+    df_results[i,"intensity_sum_foreground_red"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground))[,,1])
+    df_results[i,"intensity_sum_foreground_green"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground))[,,2])
+    df_results[i,"intensity_sum_foreground_blue"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground))[,,3])
 
-    df_results[i,"intensity_mean_red_background"] <- mean(image_background[,,1])
-    df_results[i,"intensity_mean_green_background"] <- mean(image_background[,,2])
-    df_results[i,"intensity_mean_blue_background"] <- mean(image_background[,,3])
+    df_results[i,"intensity_sum_foreground_without_nucleus_region_red"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground_wo_nucleus))[,,1])
+    df_results[i,"intensity_sum_foreground_without_nucleus_region_green"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground_wo_nucleus))[,,2])
+    df_results[i,"intensity_sum_foreground_without_nucleus_region_blue"] <- sum((Image_loaded * EBImage::toRGB(mask_foreground_wo_nucleus))[,,3])
+
+    df_results[i,"intensity_mean_background_red"] <- mean(image_background[,,1])
+    df_results[i,"intensity_mean_background_green"] <- mean(image_background[,,2])
+    df_results[i,"intensity_mean_background_blue"] <- mean(image_background[,,3])
 
     df_results[i,"number_of_total_pixels"] <- number_of_total_pixels
     df_results[i,"number_of_pixels_nucleus_region"] <- number_of_pixels_nucleus_region
@@ -1590,6 +1610,20 @@ cellPixels <- function(input_dir = NULL,
                         files = paste(output_dir, image_name_wo_czi, "_nuclei_numbers.tif", sep = ""),
                         type = "tiff",
                         bits.per.sample = 8)
+
+    # Images with marked cytosol
+    if(add_scale_bar){
+      Image_cytosol_part <- addScaleBar(image = Image_cytosol_part,
+                                  length_per_pixel = length_per_pixel_x_in_um)
+    }
+
+    Image_cytosol_part <- EBImage::Image(data = Image_cytosol_part, colormode = "Color")
+    EBImage::writeImage(x = Image_cytosol_part,
+                        files = paste(output_dir, image_name_wo_czi, "_cytosol.tif", sep = ""),
+                        type = "tiff",
+                        bits.per.sample = 8)
+
+
 
     # Images with marked nuclei and borders around the second protein in nuc
     if(add_scale_bar){
