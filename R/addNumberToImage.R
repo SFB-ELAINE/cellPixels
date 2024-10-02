@@ -3,7 +3,7 @@
 #' @details Adds an integer to a x-y-3(rgb)-representation of an image.
 #' @aliases addnumbertoimage addNumbertoimage addNumberToimage
 #' addnumberToImage addnumbertoImage
-#' @author Kai Budde
+#' @author Kai Budde-Sagert
 #' @export addNumberToImage
 #' @param image An three-dimensional array of numbers between 0 and 1
 #' @param number A number (integer to be drawn/copied)

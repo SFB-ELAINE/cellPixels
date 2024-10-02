@@ -3,7 +3,7 @@
 #' @details Input should be czi or tif-format with dim(z)>=1.
 #' We are trying to identify different cells by using nuclei and Actin layers.
 #' @aliases cellspreading CellSpreading Cellspreading
-#' @author Kai Budde
+#' @author Kai Budde-Sagert
 #' @export cellSpreading
 #' @param input_dir A character (directory that contains all images)
 #' @param nucleus_color A character (color (layer) of nuclei)
@@ -675,10 +675,10 @@ cellSpreading <- function(input_dir = NULL,
   rm(i)
 
   if(!is.null(df_results)){
-    utils::write.csv(df_results,
+    readr::write_csv(df_results,
                      file = paste(output_dir, "image_analysis_summary_en.csv", sep=""), row.names = FALSE)
 
-    utils::write.csv2(df_results,
+    readr::write_csv2(df_results,
                       file = paste(output_dir, "image_analysis_summary_de.csv", sep=""), row.names = FALSE)
   }
 

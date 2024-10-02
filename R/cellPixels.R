@@ -4,7 +4,7 @@
 #' We are counting the intensities of pixels of different color within and
 #' outside of the nuclei. We also add information about the entire image.
 #' @aliases cellpixels CellPixels
-#' @author Kai Budde
+#' @author Kai Budde-Sagert
 #' @export cellPixels
 #' @param input_dir A character (directory that contains all images)
 #' @param apotome A boolean (TRUE if Apotome was used)
@@ -134,46 +134,46 @@ cellPixels <- function(input_dir = NULL,
 
   # Create empty data fram -------------------------------------------------
 
-  df_results <- data.frame(
+  df_results <- dplyr::tibble(
     "fileName" = file_names,
     "manual_quality_check" = rep(NA, number_of_images),
-    "dimension_x" = rep(NA, number_of_images),
-    "dimension_y" = rep(NA, number_of_images),
-    "number_of_nuclei" = rep(NA, number_of_images),
-    "color_of_second_protein_in_nuclei" = rep(NA, number_of_images),
-    "number_of_nuclei_with_second_protein" = rep(NA, number_of_images),
-    "color_of_third_protein_in_cytosol" = rep(NA, number_of_images),
-    "number_of_cells_with_third_protein" = rep(NA, number_of_images),
-    "intensity_sum_full_red" = rep(NA, number_of_images),
-    "intensity_sum_full_green" = rep(NA, number_of_images),
-    "intensity_sum_full_blue" = rep(NA, number_of_images),
-    "intensity_sum_nucleus_region_red" = rep(NA, number_of_images),
-    "intensity_sum_nucleus_region_green" = rep(NA, number_of_images),
-    "intensity_sum_nucleus_region_blue" = rep(NA, number_of_images),
-    "intensity_sum_full_without_nucleus_region_red" = rep(NA, number_of_images),
-    "intensity_sum_full_without_nucleus_region_green" = rep(NA, number_of_images),
-    "intensity_sum_full_without_nucleus_region_blue" = rep(NA, number_of_images),
-    "intensity_sum_cytosol_region_red" = rep(NA, number_of_images),
-    "intensity_sum_cytosol_region_green" = rep(NA, number_of_images),
-    "intensity_sum_cytosol_region_blue" = rep(NA, number_of_images),
-    "intensity_sum_foreground_red" = rep(NA, number_of_images),
-    "intensity_sum_foreground_green" = rep(NA, number_of_images),
-    "intensity_sum_foreground_blue" = rep(NA, number_of_images),
-    "intensity_sum_foreground_without_nucleus_region_red" = rep(NA, number_of_images),
-    "intensity_sum_foreground_without_nucleus_region_green" = rep(NA, number_of_images),
-    "intensity_sum_foreground_without_nucleus_region_blue" = rep(NA, number_of_images),
-    "intensity_mean_background_red" = rep(NA, number_of_images),
-    "intensity_mean_background_green" = rep(NA, number_of_images),
-    "intensity_mean_background_blue" = rep(NA, number_of_images),
-    "number_of_total_pixels" = rep(NA, number_of_images),
-    "number_of_pixels_nucleus_region" = rep(NA, number_of_images),
-    "number_of_pixels_foreground" = rep(NA, number_of_images),
-    "number_of_pixels_foreground_without_nucleus_region" = rep(NA, number_of_images),
-    "number_of_clusters" = rep(NA, number_of_images),
-    "mean_cluster_size" = rep(NA, number_of_images),
-    "median_cluster_size" = rep(NA, number_of_images),
+    "dimension_x" = as.numeric(rep(NA, number_of_images)),
+    "dimension_y" = as.numeric(rep(NA, number_of_images)),
+    "number_of_nuclei" = as.numeric(rep(NA, number_of_images)),
+    "color_of_second_protein_in_nuclei" = as.character(rep(NA, number_of_images)),
+    "number_of_nuclei_with_second_protein" = as.numeric(rep(NA, number_of_images)),
+    "color_of_third_protein_in_cytosol" = as.character(rep(NA, number_of_images)),
+    "number_of_cells_with_third_protein" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_full_red" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_full_green" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_full_blue" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_nucleus_region_red" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_nucleus_region_green" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_nucleus_region_blue" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_full_without_nucleus_region_red" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_full_without_nucleus_region_green" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_full_without_nucleus_region_blue" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_cytosol_region_red" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_cytosol_region_green" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_cytosol_region_blue" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_foreground_red" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_foreground_green" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_foreground_blue" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_foreground_without_nucleus_region_red" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_foreground_without_nucleus_region_green" = as.numeric(rep(NA, number_of_images)),
+    "intensity_sum_foreground_without_nucleus_region_blue" = as.numeric(rep(NA, number_of_images)),
+    "intensity_mean_background_red" = as.numeric(rep(NA, number_of_images)),
+    "intensity_mean_background_green" = as.numeric(rep(NA, number_of_images)),
+    "intensity_mean_background_blue" = as.numeric(rep(NA, number_of_images)),
+    "number_of_total_pixels" = as.numeric(rep(NA, number_of_images)),
+    "number_of_pixels_nucleus_region" = as.numeric(rep(NA, number_of_images)),
+    "number_of_pixels_foreground" = as.numeric(rep(NA, number_of_images)),
+    "number_of_pixels_foreground_without_nucleus_region" = as.numeric(rep(NA, number_of_images)),
+    "number_of_clusters" = as.numeric(rep(NA, number_of_images)),
+    "mean_cluster_size" = as.numeric(rep(NA, number_of_images)),
+    "median_cluster_size" = as.numeric(rep(NA, number_of_images)),
     "image_cropped" = rep(NA, number_of_images)
-    )
+  )
 
   # Reduce the number of pixels for the borders because we will go from
   # 0 to number_of_pixels_at_border_to_disregard-1
@@ -198,7 +198,7 @@ cellPixels <- function(input_dir = NULL,
     }
 
     # Get the image path
-    image_path <- paste(input_dir, file_names[i], sep="/")
+    image_path <- file.path(input_dir, file_names[i])
 
 
     # Load image (and metainformation if available)
@@ -599,7 +599,7 @@ cellPixels <- function(input_dir = NULL,
     # -------------------------------------------------------------------- #
 
     # Normalize intensity --------------------------------------------------
-    image_normalized <- readCzi::normalizeIntensity(image = image_loaded)
+    image_normalized <- EBImage::normalize(image_loaded)
 
     # Get Background of normalized image and loaded image
     image_normalized_foreground <- image_normalized
@@ -953,6 +953,148 @@ cellPixels <- function(input_dir = NULL,
     # Use the nucleus mask to cut out nuclei of the images
     non_nucleus_mask <- 1-nmask_bw
     Image_non_nucleus_part <- Image_loaded * EBImage::toRGB(non_nucleus_mask)
+
+
+    # Count the number of nuclei that contain a second colored protein  ----
+
+    if(!is.null(protein_in_nucleus_color) & protein_in_nucleus_color != "none"){
+
+      # Save only color layer of the second protein colored
+      image_protein_in_nuc <- getLayer(image = image_loaded,
+                                       layer = protein_in_nucleus_color)
+
+      if(use_histogram_equalized){
+        image_protein_in_nuc <- EBImage::clahe(x = image_protein_in_nuc, nx = 4)
+        #display(image_protein_in_nuc)
+      }
+
+      Image_protein_in_nuc <- EBImage::Image(image_protein_in_nuc)
+      rm(image_protein_in_nuc)
+      #display(Image_protein_in_nuc)
+
+      # Blur the image
+      if(is.null(blur_sigma)){
+        if(apotome_section){
+          Image_protein_in_nuc <- EBImage::gblur(Image_protein_in_nuc, sigma = 14)
+        }else{
+          Image_protein_in_nuc <- EBImage::gblur(Image_protein_in_nuc, sigma = 6)
+        }
+      }else if(blur_sigma > 0){
+        Image_protein_in_nuc <- EBImage::gblur(Image_protein_in_nuc, sigma = blur_sigma)
+      }
+
+      #display(Image_protein_in_nuc)
+
+      # Mask the proteins within the nucleus
+      if(is.null(thresh_w_h_protein_in_nucleus)){
+        if(magnification < 20){
+          thresh_w_h_protein_in_nucleus <- 15
+        }else if(magnification < 40){
+          thresh_w_h_protein_in_nucleus <- 30
+        }else if(magnification < 60){
+          thresh_w_h_protein_in_nucleus <- 60
+        }else{
+          thresh_w_h_protein_in_nucleus <- 500
+        }
+      }
+
+      if(is.null(thresh_offset_protein_in_nucleus)){
+        thresh_offset_protein_in_nucleus <- mean(Image_protein_in_nuc)+0.1
+      }
+
+      pmask <- EBImage::thresh(Image_protein_in_nuc,
+                               w=thresh_w_h_protein_in_nucleus,
+                               h=thresh_w_h_protein_in_nucleus,
+                               offset=thresh_offset_protein_in_nucleus)
+
+      #display(pmask)
+
+      # Morphological opening to remove objects smaller than the structuring element
+      pmask <- EBImage::opening(pmask, EBImage::makeBrush(5, shape='disc'))
+      # Fill holes
+      pmask <- EBImage::fillHull(pmask)
+      #display(pmask)
+
+
+      # Combine nmask_watershed and pmask and count the resulting nuclei containing
+      # the proteins we are looking for
+      n_p_mask <- nmask_watershed*pmask
+      #display(n_p_mask)
+
+      # remove objects that are smaller than 0.01*size of respective nucleus
+      table_npmask <- table(n_p_mask)
+      # table_nmask_watershed
+      to_be_removed <- as.integer(names(
+        which(table_npmask < 0.01 * table_nmask[match(names(table_npmask), names(table_nmask))])))
+      if(length(to_be_removed) > 0){
+        n_p_mask[n_p_mask %in% to_be_removed] <- 0
+      }
+
+      # display(n_p_mask)
+
+
+      # Combine possibly multiple positive nuclei
+      if(magnification < 20){
+        n_p_mask_watershed <-  EBImage::watershed(
+          EBImage::distmap(n_p_mask), tolerance = 0.45, ext = 3) # it was tolerance = 0.5
+      }else if(magnification < 40){
+        n_p_mask_watershed <-  EBImage::watershed(
+          EBImage::distmap(n_p_mask), tolerance = 0.1, ext = 6) #sqrt(15), see thresh(Image_nuclei...
+      }else if(magnification < 60){
+        n_p_mask_watershed <-  EBImage::watershed(
+          EBImage::distmap(n_p_mask), tolerance = 0.1, ext = 6) # used to be 045, 9 | 0.3, 3
+      }else{
+        n_p_mask_watershed <-  EBImage::watershed(
+          EBImage::distmap(n_p_mask), tolerance = 0.1, ext = 6) # used to be 045, 9 | 0.3, 3
+      }
+
+      # display(colorLabels(n_p_mask_watershed))
+
+
+      # remove objects that are smaller than 0.1*min_nuc_size
+      # table_npmask <- table(n_p_mask)
+      table_npmask <- table(n_p_mask_watershed)
+
+
+
+
+
+      # Count the nuclei containing the proteins
+      # positive_nuclei <- as.numeric(names(table(n_p_mask)))
+      positive_nuclei <- as.numeric(names(table(n_p_mask_watershed)))
+      positive_nuclei <- positive_nuclei[positive_nuclei != 0]
+      # positive_nuclei <- sort(df_nmask_watershed$newNucNo[match(positive_nuclei, df_nmask_watershed$NucNo)])
+
+      # Attention: We have a new list now. The numbers do not correspondend
+      # to the actual nuclei numbers
+      # (We could no map both the nuclei and the positive nuclei map and
+      # only keep the number of the nuclei with the largest coverage.)
+
+      # print(positive_nuclei)
+      # n_p_mask <- EBImage::bwlabel(n_p_mask)
+      #display(n_p_mask)
+      # Count number of cells
+      # nuc_with_proteins_No <- max(n_p_mask)
+
+      nuc_with_proteins_No <- length(positive_nuclei)
+
+      # Add border of nuclei with proteins and save file
+      Image_nuclei_numbers_proteins <- Image_nuclei_numbers
+      EBImage::colorMode(Image_nuclei_numbers_proteins) <- "color"
+
+      Image_nuclei_numbers_proteins <- EBImage::paintObjects(
+        # x = n_p_mask,
+        x = n_p_mask_watershed,
+        tgt = Image_nuclei_numbers_proteins,
+        opac = c(1,0.8),
+        col=c('#D7FE14','#D7FE14'))
+      # display(Image_nuclei_numbers_proteins)
+
+      # Display the number of nuclei with proteins
+      print(paste("Number of nuclei that contain other colored proteins: ",
+                  nuc_with_proteins_No, sep=""))
+
+    }
 
 
     # Count the number of nuclei that contain a second colored protein  ----
@@ -1481,40 +1623,40 @@ cellPixels <- function(input_dir = NULL,
     # Save all images ------------------------------------------------------
 
     # if(image_format == "czi"){
-      # Get information for adding a scale bar
-      # length_per_pixel_x <- gsub(
-      #   pattern = paste(".+<Items>[[:space:]]+<Distance Id=\"X\">[[:space:]]+",
-      #                   "<Value>(.{2,25})</Value>.+",sep=""),
-      #   replacement = "\\1",
-      #   x = metadata)
-      # length_per_pixel_x <- tolower(length_per_pixel_x)
-      # length_per_pixel_x <- as.numeric(length_per_pixel_x)
-      length_per_pixel_x_in_um <- df_metadata$scaling_x_in_um[1]
+    # Get information for adding a scale bar
+    # length_per_pixel_x <- gsub(
+    #   pattern = paste(".+<Items>[[:space:]]+<Distance Id=\"X\">[[:space:]]+",
+    #                   "<Value>(.{2,25})</Value>.+",sep=""),
+    #   replacement = "\\1",
+    #   x = metadata)
+    # length_per_pixel_x <- tolower(length_per_pixel_x)
+    # length_per_pixel_x <- as.numeric(length_per_pixel_x)
+    length_per_pixel_x_in_um <- df_metadata$scaling_x_in_um[1]
 
-      # length_per_pixel_y <- gsub(
-      #   pattern = paste(".+<Items>.+<Distance Id=\"Y\">[[:space:]]+",
-      #                   "<Value>(.{2,25})</Value>.+",sep=""),
-      #   replacement = "\\1",
-      #   x = metadata)
-      # length_per_pixel_y <- tolower(length_per_pixel_y)
-      # length_per_pixel_y <- as.numeric(length_per_pixel_y)
-      length_per_pixel_y_in_um <- df_metadata$scaling_y_in_um[1]
+    # length_per_pixel_y <- gsub(
+    #   pattern = paste(".+<Items>.+<Distance Id=\"Y\">[[:space:]]+",
+    #                   "<Value>(.{2,25})</Value>.+",sep=""),
+    #   replacement = "\\1",
+    #   x = metadata)
+    # length_per_pixel_y <- tolower(length_per_pixel_y)
+    # length_per_pixel_y <- as.numeric(length_per_pixel_y)
+    length_per_pixel_y_in_um <- df_metadata$scaling_y_in_um[1]
 
-      if(length_per_pixel_x_in_um != length_per_pixel_y_in_um){
-        print("Dimension in x- and y-directions are different! ERROR!")
-      }
+    if(length_per_pixel_x_in_um != length_per_pixel_y_in_um){
+      print("Dimension in x- and y-directions are different! ERROR!")
+    }
 
-      # # Save metadata in txt file
-      # utils::write.table(metadata, file = paste(output_dir,image_name_wo_czi,
-      #                                           "_metadata.txt", sep = ""),
-      #                    sep = "", row.names = FALSE, col.names = FALSE, quote = FALSE)
+    # # Save metadata in txt file
+    # utils::write.table(metadata, file = paste(output_dir,image_name_wo_czi,
+    #                                           "_metadata.txt", sep = ""),
+    #                    sep = "", row.names = FALSE, col.names = FALSE, quote = FALSE)
 
 
-      # Original image (converted to tif)
-      if(add_scale_bar){
-        image_loaded <- addScaleBar(image = image_loaded,
-                                    length_per_pixel = length_per_pixel_x_in_um)
-      }
+    # Original image (converted to tif)
+    if(add_scale_bar){
+      image_loaded <- addScaleBar(image = image_loaded,
+                                  length_per_pixel = length_per_pixel_x_in_um)
+    }
     # }
 
     # tiff::writeTIFF(what = image_loaded,
@@ -1614,7 +1756,7 @@ cellPixels <- function(input_dir = NULL,
     # Images with marked cytosol
     if(add_scale_bar){
       Image_cytosol_part <- addScaleBar(image = Image_cytosol_part,
-                                  length_per_pixel = length_per_pixel_x_in_um)
+                                        length_per_pixel = length_per_pixel_x_in_um)
     }
 
     Image_cytosol_part <- EBImage::Image(data = Image_cytosol_part, colormode = "Color")
@@ -1788,11 +1930,11 @@ cellPixels <- function(input_dir = NULL,
   rm(i)
 
   if(!is.null(df_results)){
-    utils::write.csv(df_results,
-                     file = paste(output_dir, "image_analysis_summary_en.csv", sep=""), row.names = FALSE)
+    readr::write_csv(df_results,
+                     file = paste(output_dir, "image_analysis_summary_en.csv", sep=""))
 
-    utils::write.csv2(df_results,
-                      file = paste(output_dir, "image_analysis_summary_de.csv", sep=""), row.names = FALSE)
+    readr::write_csv2(df_results,
+                      file = paste(output_dir, "image_analysis_summary_de.csv", sep=""))
   }
 
   return(df_results)

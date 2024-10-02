@@ -3,7 +3,7 @@
 #' @details By using an x-y-3(rgb)-representation of an image, you can
 #' extract one layer.
 #' @aliases getlayer
-#' @author Kai Budde
+#' @author Kai Budde-Sagert
 #' @export getLayer
 #' @param image An three-dimensional array of numbers between 0 and 1
 #' @param layer A character (color of the layer)

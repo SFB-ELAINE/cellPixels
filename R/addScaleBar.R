@@ -3,7 +3,7 @@
 #' @details Add a scale bar to a tiff image depending on the meta data of
 #' the czi file
 #' @aliases addscaleBar addScalebar addscalebar
-#' @author Kai Budde
+#' @author Kai Budde-Sagert
 #' @export addScaleBar
 #' @param image An array (2 or 3 dimensional array, could also be of
 #' formal class Image by package EBImage)
